@@ -1,404 +1,634 @@
-/* cover.js — canvas render engine for the cover art studio.
- * Draws one cover from a state object. No network, no dependencies
- * besides CoverGrades. All layout geometry is normalised (0..1)
- * and scaled to whatever canvas size is asked for. */
-(function () {
-  "use strict";
+// Neon Shore — cover renderer.
+//
+// One design space, 1080 by 1080. Every layout draws into it; exports reuse
+// the same drawing at other sizes by scaling the whole design. Nothing here
+// touches the network: photos are Image objects the editor loaded from
+// local files, and the lettering is the vendored Anton and Pacifico.
+//
+// The cover speaks movie-poster: a quote bar with stars on top, a full-width
+// striped title the hero photo slightly overlaps, a handwritten subtitle, a
+// cast of tagged panels, a location strip, a ticket stub, and a billing
+// block with a barcode at the bottom.
 
-  var GAP = 0.008; // gap between panels, as a fraction of the short side
+const DESIGN_W = 1080;
+const DESIGN_H = 1080;
+const MARGIN = 36;
 
-  var LAYOUTS = {
-    hero: { label: "Hero Four", cells: 4, blurb: "Big hero photo, three panels below" },
-    full: { label: "Full Frame", cells: 1, blurb: "One photo, edge to edge" },
-    grid: { label: "Nine Grid", cells: 9, blurb: "Three by three mosaic" },
-    polaroid: { label: "Polaroids", cells: 3, blurb: "Tilted instant prints, stacked" },
+const LAYOUTS = {
+  cast: { name: "Cast Grid", blurb: "Big hero photo, four cast panels below" },
+  hero: { name: "Hero Four", blurb: "Big hero photo, three panels below" },
+  full: { name: "Full Frame", blurb: "One photo, edge to edge" },
+  nine: { name: "Nine Grid", blurb: "Three by three mosaic" },
+  polaroids: { name: "Polaroids", blurb: "Tilted instant prints, stacked" },
+};
+
+function layoutIds() {
+  return Object.keys(LAYOUTS);
+}
+
+// --- small helpers -------------------------------------------------------
+
+function clamp(v, lo, hi) {
+  return v < lo ? lo : v > hi ? hi : v;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// A deterministic source of bar widths for the barcode, so every render
+// of the same cover draws the same code.
+function barcodeSeed() {
+  let s = 20260715;
+  return function () {
+    s = (s * 16807) % 2147483647;
+    return s / 2147483647;
   };
+}
 
-  function clamp(v, lo, hi) {
-    return Math.max(lo, Math.min(hi, v));
+// --- photo drawing with the face-safe crop -------------------------------
+// The focal point defaults to the upper third of the photo, where a face
+// usually sits, instead of the middle. Dragging pans the window and the
+// wheel zooms it; the window is clamped so it never leaves the photo.
+
+function photoWindow(img, rect, cell) {
+  const iw = img.naturalWidth;
+  const ih = img.naturalHeight;
+  const zoom = clamp(cell.zoom || 1, 1, 3);
+  const scale = Math.max(rect.w / iw, rect.h / ih) * zoom;
+  const visW = rect.w / scale;
+  const visH = rect.h / scale;
+  let cx = (cell.fx ?? 0.5) * iw + (cell.panX || 0);
+  let cy = (cell.fy ?? 0.3) * ih + (cell.panY || 0);
+  cx = visW >= iw ? iw / 2 : clamp(cx, visW / 2, iw - visW / 2);
+  cy = visH >= ih ? ih / 2 : clamp(cy, visH / 2, ih - visH / 2);
+  return { sx: cx - visW / 2, sy: cy - visH / 2, sw: visW, sh: visH, scale };
+}
+
+function blitPhoto(ctx, img, win, dest, gradeId, flip, wash) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(dest.x, dest.y, dest.w, dest.h);
+  ctx.clip();
+  ctx.filter = gradeFilter(gradeId);
+  if (flip) {
+    ctx.translate(dest.x + dest.w, dest.y);
+    ctx.scale(-1, 1);
+    ctx.drawImage(img, win.sx, win.sy, win.sw, win.sh, 0, 0, dest.w, dest.h);
+  } else {
+    ctx.drawImage(img, win.sx, win.sy, win.sw, win.sh, dest.x, dest.y, dest.w, dest.h);
   }
+  ctx.filter = "none";
+  if (wash !== false) paintGradeWash(ctx, dest.x, dest.y, dest.w, dest.h, gradeId);
+  ctx.restore();
+}
 
-  // Panel rectangles for a layout, in canvas pixels.
-  // Each cell: { x, y, w, h, rot (radians), frame (bool) }
-  function layoutCells(layout, W, H) {
-    var g = Math.round(Math.min(W, H) * GAP);
-    var cells = [];
-    var i, x, y, w, h;
-    if (layout === "full") {
-      cells.push({ x: 0, y: 0, w: W, h: H, rot: 0, frame: false });
-    } else if (layout === "hero") {
-      var heroH = Math.round(H * 0.64);
-      cells.push({ x: 0, y: 0, w: W, h: heroH - g, rot: 0, frame: false });
-      var bw = Math.floor((W - g * 2) / 3);
-      for (i = 0; i < 3; i++) {
-        cells.push({
-          x: i * (bw + g),
-          y: heroH,
-          w: bw,
-          h: H - heroH,
-          rot: 0,
-          frame: false,
-        });
-      }
-    } else if (layout === "grid") {
-      var cw = Math.floor((W - g * 2) / 3);
-      var ch = Math.floor((H - g * 2) / 3);
-      for (var r = 0; r < 3; r++) {
-        for (var c = 0; c < 3; c++) {
-          cells.push({
-            x: c * (cw + g),
-            y: r * (ch + g),
-            w: cw,
-            h: ch,
-            rot: 0,
-            frame: false,
-          });
-        }
-      }
-    } else if (layout === "polaroid") {
-      var fw = Math.round(W * 0.5);
-      var fh = Math.round(H * 0.58);
-      var spots = [
-        { cx: 0.26, cy: 0.56, rot: -0.16 },
-        { cx: 0.5, cy: 0.5, rot: 0.03 },
-        { cx: 0.74, cy: 0.56, rot: 0.14 },
-      ];
-      for (i = 0; i < 3; i++) {
-        x = Math.round(spots[i].cx * W - fw / 2);
-        y = Math.round(spots[i].cy * H - fh / 2);
-        cells.push({ x: x, y: y, w: fw, h: fh, rot: spots[i].rot, frame: true });
+function drawPhotoInto(ctx, img, rect, cell, gradeId) {
+  if (!img || !img.naturalWidth) return;
+  blitPhoto(ctx, img, photoWindow(img, rect, cell), rect, gradeId, !!cell.flip, true);
+}
+
+// --- lettering -----------------------------------------------------------
+
+function fitAnton(ctx, text, maxW, startPx) {
+  let px = startPx;
+  ctx.font = px + 'px Anton, "Arial Narrow", sans-serif';
+  while (px > 24 && ctx.measureText(text).width > maxW) {
+    px -= 4;
+    ctx.font = px + 'px Anton, "Arial Narrow", sans-serif';
+  }
+  return px;
+}
+
+// The full-width title: chrome-yellow sunset stripes, a dark outline, and
+// a hard offset shadow so it lifts off the photo.
+function drawTitle(ctx, text, cx, topY, maxW, scale) {
+  const px = fitAnton(ctx, text, maxW, Math.round(150 * scale));
+  const grad = ctx.createLinearGradient(cx - maxW / 2, 0, cx + maxW / 2, 0);
+  grad.addColorStop(0.0, "#FFE259");
+  grad.addColorStop(0.35, "#FFD319");
+  grad.addColorStop(0.55, "#FF9A3D");
+  grad.addColorStop(0.75, "#FF2975");
+  grad.addColorStop(1.0, "#FFC93C");
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.font = px + 'px Anton, "Arial Narrow", sans-serif';
+  ctx.fillStyle = "rgba(10, 4, 24, 0.45)";
+  ctx.fillText(text, cx + 5, topY + px + 7);
+  ctx.lineJoin = "round";
+  ctx.lineWidth = Math.max(6, px * 0.07);
+  ctx.strokeStyle = "#14082B";
+  ctx.strokeText(text, cx, topY + px);
+  ctx.fillStyle = grad;
+  ctx.fillText(text, cx, topY + px);
+  ctx.restore();
+  return px;
+}
+
+function drawSubtitle(ctx, text, cx, y) {
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "54px Pacifico, cursive";
+  ctx.shadowColor = "rgba(10, 4, 24, 0.6)";
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 3;
+  ctx.fillStyle = "#FFE9F3";
+  ctx.fillText(text, cx, y);
+  ctx.restore();
+}
+
+function drawSlogan(ctx, text, cx, y) {
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = '30px Anton, "Arial Narrow", sans-serif';
+  ctx.letterSpacing = "7px";
+  ctx.fillStyle = "#FFD319";
+  ctx.fillText(text, cx, y);
+  ctx.restore();
+}
+
+// --- furniture: quote bar, tags, ticket, badge, billing ------------------
+
+function drawQuoteBar(ctx, state) {
+  const x = MARGIN, y = 30, w = DESIGN_W - MARGIN * 2, h = 54;
+  ctx.save();
+  ctx.fillStyle = "rgba(10, 6, 24, 0.88)";
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "#FFD319";
+  ctx.fillRect(x, y, w, 3);
+  ctx.fillRect(x, y + h - 3, w, 3);
+  const stars = "★".repeat(state.stars) + "☆".repeat(5 - state.stars);
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.font = '26px Anton, "Arial Narrow", sans-serif';
+  ctx.fillStyle = "#FFD319";
+  ctx.fillText(stars, x + 16, y + h / 2 + 2);
+  const starsW = ctx.measureText(stars).width;
+  ctx.font = "bold 24px Arial, sans-serif";
+  const src = "— " + state.quoteSource;
+  const srcW = ctx.measureText(src).width;
+  ctx.fillStyle = "#FFD319";
+  ctx.textAlign = "right";
+  ctx.fillText(src, x + w - 16, y + h / 2 + 1);
+  let px = 26;
+  ctx.textAlign = "left";
+  ctx.font = "bold " + px + "px Arial, sans-serif";
+  const avail = w - 16 - starsW - 24 - srcW - 32;
+  const quote = "“" + state.quote + "”";
+  while (px > 16 && ctx.measureText(quote).width > avail) {
+    px -= 2;
+    ctx.font = "bold " + px + "px Arial, sans-serif";
+  }
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillText(quote, x + 16 + starsW + 24, y + h / 2 + 1);
+  ctx.restore();
+}
+
+// A black chip with a gold edge: the cast tag on a panel's corner.
+function drawTag(ctx, text, x, y) {
+  ctx.save();
+  ctx.font = '22px Anton, "Arial Narrow", sans-serif';
+  const w = ctx.measureText(text).width + 22;
+  const h = 32;
+  ctx.fillStyle = "rgba(8, 4, 20, 0.92)";
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "#FFD319";
+  ctx.fillRect(x, y, 4, h);
+  ctx.fillStyle = "#FFFFFF";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + 12, y + h / 2 + 1);
+  ctx.restore();
+  return w;
+}
+
+function drawTicket(ctx, text, x, y) {
+  ctx.save();
+  ctx.font = '24px Anton, "Arial Narrow", sans-serif';
+  const w = ctx.measureText(text).width + 30;
+  const h = 36;
+  ctx.fillStyle = "#FFD319";
+  roundRect(ctx, x, y, w, h, 6);
+  ctx.fill();
+  ctx.fillStyle = "#14082B";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + w / 2, y + h / 2 + 1);
+  ctx.restore();
+  return w;
+}
+
+function drawLocationStrip(ctx, text, x, y) {
+  ctx.save();
+  ctx.font = '24px Anton, "Arial Narrow", sans-serif';
+  const w = ctx.measureText(text).width + 28;
+  const h = 38;
+  ctx.fillStyle = "rgba(8, 4, 20, 0.88)";
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "#FFD319";
+  ctx.fillRect(x, y, w, 3);
+  ctx.fillStyle = "#FFFFFF";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + 14, y + h / 2 + 1);
+  ctx.restore();
+  return w;
+}
+
+function drawStarBadge(ctx, cx, cy, r, rot) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot);
+  ctx.beginPath();
+  const points = 16;
+  for (let i = 0; i < points * 2; i++) {
+    const ang = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+    const rad = i % 2 === 0 ? r : r * 0.78;
+    const px = Math.cos(ang) * rad;
+    const py = Math.sin(ang) * rad;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = "#FF2975";
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#FFFFFF";
+  ctx.stroke();
+  ctx.fillStyle = "#FFFFFF";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "bold 21px Arial, sans-serif";
+  ctx.fillText("EST. 2026", 0, -12);
+  ctx.font = "bold 19px Arial, sans-serif";
+  ctx.fillText("ORIGINAL", 0, 12);
+  ctx.restore();
+}
+
+function drawBarcode(ctx, x, y, w, h) {
+  const next = barcodeSeed();
+  ctx.save();
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(x - 6, y - 4, w + 12, h + 8);
+  ctx.fillStyle = "#14082B";
+  let bx = x;
+  while (bx < x + w - 4) {
+    const bw = 2 + Math.floor(next() * 4);
+    if (next() > 0.35) ctx.fillRect(bx, y, bw, h);
+    bx += bw + 2;
+  }
+  ctx.restore();
+}
+
+// The billing block: the production line is built from the cast tags, so
+// renaming a character renames the billing with it.
+function drawBilling(ctx, state) {
+  const y0 = 934;
+  const cx = DESIGN_W / 2;
+  const n = visibleCellCount(state.layout);
+  const names = [...new Set([state.hero.tag].concat(state.cells.slice(0, n).map((c) => c.tag)))].filter(Boolean);
+  const billingLine = "STARRING " + names.join(" · ");
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = '26px Anton, "Arial Narrow", sans-serif';
+  ctx.letterSpacing = "4px";
+  ctx.fillStyle = "#FFD319";
+  ctx.fillText("A NEON SHORE PICTURE", cx, y0 + 8);
+  let px = 21;
+  ctx.font = px + "px Arial, sans-serif";
+  ctx.letterSpacing = "2px";
+  while (px > 14 && ctx.measureText(billingLine).width > DESIGN_W - MARGIN * 2) {
+    px -= 1;
+    ctx.font = px + "px Arial, sans-serif";
+  }
+  ctx.fillStyle = "#F2EAFB";
+  ctx.fillText(billingLine, cx, y0 + 40);
+  ctx.font = '34px Anton, "Arial Narrow", sans-serif';
+  ctx.letterSpacing = "5px";
+  ctx.fillStyle = "#FFFFFF";
+  ctx.textAlign = "left";
+  ctx.fillText("COMING SOON", MARGIN, y0 + 82);
+  drawBarcode(ctx, cx - 90, y0 + 58, 180, 46);
+  ctx.strokeStyle = "#FFFFFF";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(DESIGN_W - MARGIN - 52, y0 + 58, 52, 46);
+  ctx.font = '28px Anton, "Arial Narrow", sans-serif';
+  ctx.textAlign = "center";
+  ctx.fillText("NS", DESIGN_W - MARGIN - 26, y0 + 82);
+  ctx.restore();
+}
+
+// --- layouts -------------------------------------------------------------
+
+function coverGeometry(layout) {
+  const inner = DESIGN_W - MARGIN * 2;
+  if (layout === "cast") {
+    const hero = { x: MARGIN, y: 96, w: inner, h: 466 };
+    const cw = (inner - 3 * 12) / 4;
+    const cells = [0, 1, 2, 3].map((i) => ({
+      x: MARGIN + i * (cw + 12),
+      y: 760,
+      w: cw,
+      h: 158,
+    }));
+    return { hero, cells, titleTop: 530, subtitleY: 700, sloganY: 736 };
+  }
+  if (layout === "hero") {
+    const hero = { x: MARGIN, y: 96, w: inner, h: 466 };
+    const cw = (inner - 2 * 12) / 3;
+    const cells = [0, 1, 2].map((i) => ({
+      x: MARGIN + i * (cw + 12),
+      y: 760,
+      w: cw,
+      h: 158,
+    }));
+    return { hero, cells, titleTop: 530, subtitleY: 700, sloganY: 736 };
+  }
+  if (layout === "full") {
+    return {
+      hero: { x: 0, y: 0, w: DESIGN_W, h: DESIGN_H },
+      cells: [],
+      titleTop: 560,
+      subtitleY: 736,
+      sloganY: 772,
+    };
+  }
+  if (layout === "nine") {
+    const cw = (inner - 2 * 10) / 3;
+    const ch = (826 - 2 * 10) / 3;
+    const cells = [];
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        cells.push({ x: MARGIN + c * (cw + 10), y: 96 + r * (ch + 10), w: cw, h: ch });
       }
     }
-    return cells;
+    return { hero: null, cells, titleTop: 440, subtitleY: 612, sloganY: 648 };
   }
+  // polaroids: the hero is the full-bleed backdrop, the prints are placed
+  // by drawPolaroids below.
+  return {
+    hero: { x: 0, y: 0, w: DESIGN_W, h: DESIGN_H },
+    cells: [],
+    titleTop: 108,
+    subtitleY: 284,
+    sloganY: 320,
+  };
+}
 
-  // Cover-fit draw of a graded photo into a cell, with pan (ox/oy in -1..1)
-  // and zoom (1..3). Source rect is clamped so no empty edges show.
-  function drawCell(ctx, img, cell, photo) {
-    var gw = img.width;
-    var gh = img.height;
-    var cw = cell.w;
-    var ch = cell.h;
-    var zoom = clamp(photo.zoom || 1, 1, 3);
-    var base = Math.max(cw / gw, ch / gh);
-    var s = base * zoom;
-    var sw = cw / s;
-    var sh = ch / s;
-    var sx = (gw - sw) / 2 + (photo.ox || 0) * ((gw - sw) / 2);
-    var sy = (gh - sh) / 2 + (photo.oy || 0) * ((gh - sh) / 2);
-    sx = clamp(sx, 0, Math.max(0, gw - sw));
-    sy = clamp(sy, 0, Math.max(0, gh - sh));
+// Clickable zones in design space: the hero, then each visible cell.
+function hitZones(state) {
+  const geo = coverGeometry(state.layout);
+  const zones = [];
+  if (geo.hero) zones.push({ kind: "hero", index: -1, rect: geo.hero });
+  geo.cells.forEach((rect, i) => zones.push({ kind: "cell", index: i, rect }));
+  if (state.layout === "polaroids") {
+    return [
+      { kind: "cell", index: 0, rect: { x: 90, y: 340, w: 300, h: 380 } },
+      { kind: "cell", index: 1, rect: { x: 390, y: 330, w: 300, h: 380 } },
+      { kind: "cell", index: 2, rect: { x: 690, y: 340, w: 300, h: 380 } },
+    ];
+  }
+  return zones;
+}
+
+function visibleCellCount(layout) {
+  if (layout === "cast") return 4;
+  if (layout === "hero") return 3;
+  if (layout === "nine") return 9;
+  if (layout === "polaroids") return 3;
+  return 0;
+}
+
+function drawPolaroids(ctx, state, img) {
+  const prints = [
+    { cell: state.cells[0], x: 90, y: 340, rot: -0.1 },
+    { cell: state.cells[1], x: 390, y: 330, rot: 0.03 },
+    { cell: state.cells[2], x: 690, y: 340, rot: 0.09 },
+  ];
+  prints.forEach((p) => {
+    const cell = p.cell;
+    if (!cell) return;
+    const w = 300;
+    const photoH = 300;
+    const frameH = 380;
     ctx.save();
-    if (cell.rot) {
-      ctx.translate(cell.x + cw / 2, cell.y + ch / 2);
-      ctx.rotate(cell.rot);
-      ctx.translate(-cw / 2, -ch / 2);
-    } else {
-      ctx.translate(cell.x, cell.y);
-    }
-    if (cell.frame) {
-      // White instant-print border with a wider bottom strip.
-      ctx.fillStyle = "#f7f2e8";
-      ctx.shadowColor = "rgba(0,0,0,0.45)";
-      ctx.shadowBlur = Math.round(Math.min(cw, ch) * 0.05);
-      ctx.shadowOffsetY = Math.round(Math.min(cw, ch) * 0.02);
-      ctx.fillRect(0, 0, cw, ch);
-      ctx.shadowColor = "transparent";
-      var pad = Math.round(cw * 0.045);
-      var strip = Math.round(ch * 0.16);
-      ctx.drawImage(
-        img, sx, sy, sw, sh,
-        pad, pad, cw - pad * 2, ch - pad - strip
-      );
-      ctx.fillStyle = "#2b2b2b";
-      ctx.font = Math.round(strip * 0.42) + "px Pacifico, cursive";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(photo.stripText || "neon shore", cw / 2, ch - strip / 2);
-    } else {
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
-    }
-    ctx.restore();
-  }
-
-  // Fit caption text into maxWidth: shrink, then word-wrap (max 3 lines).
-  function fitLines(ctx, text, maxWidth, baseSize) {
-    var size = baseSize;
-    var words = String(text || "").toUpperCase().split(/\s+/).filter(Boolean);
-    if (!words.length) return { lines: [], size: 0 };
-    var lines = [];
-    while (size > baseSize * 0.35) {
-      ctx.font = size + "px Anton, sans-serif";
-      lines = [];
-      var cur = words[0];
-      for (var i = 1; i < words.length; i++) {
-        var trial = cur + " " + words[i];
-        if (ctx.measureText(trial).width <= maxWidth) {
-          cur = trial;
-        } else {
-          lines.push(cur);
-          cur = words[i];
-        }
-      }
-      lines.push(cur);
-      var widest = 0;
-      for (var j = 0; j < lines.length; j++) {
-        widest = Math.max(widest, ctx.measureText(lines[j]).width);
-      }
-      if (widest <= maxWidth && lines.length <= 3) break;
-      size *= 0.92;
-    }
-    return { lines: lines, size: size };
-  }
-
-  function drawCaption(ctx, W, H, state) {
-    var caption = (state.caption || "").trim();
-    if (!caption) return;
-    var layout = state.layout;
-    var maxW = W * (layout === "grid" ? 0.86 : 0.9);
-    var base = Math.round(Math.min(W, H) * 0.115 * (state.captionSize || 1));
-    var fitted = fitLines(ctx, caption, maxW, base);
-    if (!fitted.lines.length) return;
-    var size = fitted.size;
-    var lineH = size * 1.04;
-    var grad = ctx.createLinearGradient(0, 0, 0, size * fitted.lines.length);
-    grad.addColorStop(0, "#ffffff");
-    grad.addColorStop(0.55, "#ffe9a8");
-    grad.addColorStop(1, "#ff9a5c");
-    var totalH = lineH * fitted.lines.length;
-    var cx = W / 2;
-    var cy;
-    if (layout === "polaroid") {
-      cy = Math.round(H * 0.1) + totalH / 2; // title band above the prints
-    } else if (layout === "grid") {
-      cy = H - Math.round(H * 0.1) - totalH / 2; // dark band at the bottom
-      ctx.fillStyle = "rgba(10,6,18,0.62)";
-      ctx.fillRect(0, H - Math.round(H * 0.2), W, Math.round(H * 0.2));
-    } else if (layout === "full") {
-      cy = H * (state.captionY == null ? 0.8 : state.captionY);
-    } else {
-      cy = Math.round(H * 0.64) - totalH - Math.round(H * 0.03); // bottom of hero
-    }
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(layout === "polaroid" ? 0 : -0.035);
+    ctx.translate(p.x + w / 2, p.y + frameH / 2);
+    ctx.rotate(p.rot);
+    ctx.fillStyle = "#F7F2E8";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 10;
+    ctx.fillRect(-w / 2, -frameH / 2, w, frameH);
+    ctx.shadowColor = "rgba(0, 0, 0, 0)";
+    drawPhotoInto(
+      ctx,
+      img(cell.photo),
+      { x: -w / 2 + 14, y: -frameH / 2 + 14, w: w - 28, h: photoH },
+      cell,
+      state.grade
+    );
+    ctx.fillStyle = "#14082B";
+    ctx.font = '26px Anton, "Arial Narrow", sans-serif';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = size + "px Anton, sans-serif";
-    ctx.lineJoin = "round";
-    ctx.shadowColor = "rgba(0,0,0,0.55)";
-    ctx.shadowBlur = Math.round(size * 0.12);
-    ctx.shadowOffsetY = Math.round(size * 0.05);
-    ctx.strokeStyle = "rgba(24,8,28,0.92)";
-    ctx.lineWidth = Math.max(2, size * 0.09);
-    ctx.fillStyle = grad;
-    for (var i = 0; i < fitted.lines.length; i++) {
-      var ly = (i - (fitted.lines.length - 1) / 2) * lineH;
-      ctx.strokeText(fitted.lines[i], 0, ly);
-      ctx.fillText(fitted.lines[i], 0, ly);
-    }
+    ctx.fillText(cell.tag, 0, frameH / 2 - 36);
     ctx.restore();
+  });
+}
 
-    var sub = (state.subcaption || "").trim();
-    if (sub) {
-      ctx.save();
-      ctx.font = Math.round(size * 0.34) + "px Pacifico, cursive";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "#ffe9fb";
-      ctx.shadowColor = "rgba(0,0,0,0.6)";
-      ctx.shadowBlur = 6;
-      var subY = cy + totalH / 2 + Math.round(size * 0.42);
-      if (layout === "grid") subY = H - Math.round(H * 0.035);
-      ctx.fillText(sub, W / 2, subY);
-      ctx.restore();
-    }
+// --- the cover -----------------------------------------------------------
+
+function drawDesign(ctx, state) {
+  const layout = state.layout;
+  const geo = coverGeometry(layout);
+  ctx.fillStyle = "#0D0716";
+  ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+  const img = (id) => state.photos[id] && state.photos[id].img;
+
+  if (layout === "full") {
+    drawPhotoInto(ctx, img(state.hero.photo), geo.hero, state.hero, state.grade);
+    const scrim = ctx.createLinearGradient(0, 700, 0, DESIGN_H);
+    scrim.addColorStop(0, "rgba(10, 4, 24, 0)");
+    scrim.addColorStop(1, "rgba(10, 4, 24, 0.85)");
+    ctx.fillStyle = scrim;
+    ctx.fillRect(0, 700, DESIGN_W, DESIGN_H - 700);
+    const topScrim = ctx.createLinearGradient(0, 0, 0, 140);
+    topScrim.addColorStop(0, "rgba(10, 4, 24, 0.75)");
+    topScrim.addColorStop(1, "rgba(10, 4, 24, 0)");
+    ctx.fillStyle = topScrim;
+    ctx.fillRect(0, 0, DESIGN_W, 140);
+  } else if (layout === "nine") {
+    geo.cells.forEach((rect, i) => {
+      const cell = state.cells[i] || state.cells[0];
+      drawPhotoInto(ctx, img(cell.photo), rect, cell, state.grade);
+      drawTag(ctx, cell.tag, rect.x + 8, rect.y + rect.h - 40);
+    });
+    ctx.fillStyle = "rgba(10, 4, 24, 0.72)";
+    ctx.fillRect(0, 424, DESIGN_W, 256);
+  } else if (layout === "polaroids") {
+    drawPhotoInto(ctx, img(state.hero.photo), geo.hero, state.hero, state.grade);
+    ctx.fillStyle = "rgba(10, 4, 24, 0.45)";
+    ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+    drawPolaroids(ctx, state, img);
+  } else {
+    // cast + hero: one big photo, a row of cast panels under the title.
+    drawPhotoInto(ctx, img(state.hero.photo), geo.hero, state.hero, state.grade);
+    geo.cells.forEach((rect, i) => {
+      const cell = state.cells[i];
+      if (!cell) return;
+      drawPhotoInto(ctx, img(cell.photo), rect, cell, state.grade);
+      drawTag(ctx, cell.tag, rect.x + 8, rect.y + rect.h - 40);
+    });
+    drawTag(ctx, state.hero.tag, geo.hero.x + 12, geo.hero.y + 12);
   }
 
-  function drawBadge(ctx, W, H, state) {
-    if (!state.effects || !state.effects.badge) return;
-    var r = Math.round(Math.min(W, H) * 0.085);
-    var cx = W - r - Math.round(W * 0.03);
-    var cy = r + Math.round(H * 0.03);
+  drawQuoteBar(ctx, state);
+
+  drawTitle(ctx, state.title, DESIGN_W / 2, geo.titleTop, DESIGN_W - MARGIN * 2 - 20, state.titleScale || 1);
+  drawSubtitle(ctx, state.subtitle, DESIGN_W / 2, geo.subtitleY);
+  drawSlogan(ctx, state.slogan, DESIGN_W / 2, geo.sloganY);
+
+  // The hero's bottom band is painted over the title's top edge, so the
+  // photo looks like it breaks out of its frame over the lettering.
+  if ((layout === "cast" || layout === "hero") && img(state.hero.photo)) {
+    const heroImg = img(state.hero.photo);
+    const bandH = 44;
+    const win = photoWindow(heroImg, geo.hero, state.hero);
+    const bandWin = {
+      sx: win.sx,
+      sy: win.sy + win.sh * (1 - bandH / geo.hero.h),
+      sw: win.sw,
+      sh: win.sh * (bandH / geo.hero.h),
+      scale: win.scale,
+    };
+    blitPhoto(
+      ctx,
+      heroImg,
+      bandWin,
+      { x: geo.hero.x, y: geo.hero.y + geo.hero.h - bandH, w: geo.hero.w, h: bandH },
+      state.grade,
+      !!state.hero.flip,
+      true
+    );
+  }
+
+  if (layout === "cast" || layout === "hero") {
+    drawLocationStrip(ctx, state.location, geo.hero.x + 12, geo.hero.y + geo.hero.h - 50);
+    drawTicket(ctx, state.ticket, geo.hero.x + geo.hero.w - 116, geo.hero.y + geo.hero.h - 50);
+  } else if (layout === "full") {
+    drawLocationStrip(ctx, state.location, MARGIN, 100);
+    drawTicket(ctx, state.ticket, DESIGN_W - MARGIN - 116, 100);
+  } else if (layout === "polaroids") {
+    drawLocationStrip(ctx, state.location, MARGIN, 880);
+    drawTicket(ctx, state.ticket, DESIGN_W - MARGIN - 116, 880);
+  }
+
+  if (state.showBadge && layout !== "nine") {
+    const badgeY = layout === "full" ? 230 : 150;
+    drawStarBadge(ctx, DESIGN_W - MARGIN - 46, badgeY, 54, -0.21);
+  }
+
+  if (state.showBilling) drawBilling(ctx, state);
+}
+
+// --- grain and vignette --------------------------------------------------
+
+let grainPattern = null;
+
+function paintGrain(ctx, w, h) {
+  if (!grainPattern) {
+    const g = document.createElement("canvas");
+    g.width = 160;
+    g.height = 160;
+    const gc = g.getContext("2d");
+    const data = gc.createImageData(160, 160);
+    for (let i = 0; i < data.data.length; i += 4) {
+      const v = 118 + Math.floor(Math.random() * 40);
+      data.data[i] = v;
+      data.data[i + 1] = v;
+      data.data[i + 2] = v;
+      data.data[i + 3] = 255;
+    }
+    gc.putImageData(data, 0, 0);
+    grainPattern = ctx.createPattern(g, "repeat");
+  }
+  ctx.save();
+  ctx.globalAlpha = 0.05;
+  ctx.globalCompositeOperation = "overlay";
+  ctx.fillStyle = grainPattern;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+function paintVignette(ctx, w, h) {
+  const grad = ctx.createRadialGradient(
+    w / 2, h / 2, Math.min(w, h) * 0.42,
+    w / 2, h / 2, Math.max(w, h) * 0.75
+  );
+  grad.addColorStop(0, "rgba(8, 3, 18, 0)");
+  grad.addColorStop(1, "rgba(8, 3, 18, 0.30)");
+  ctx.save();
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+// --- render + export -----------------------------------------------------
+
+// Draw the cover onto any canvas at any size. Square uses the design as
+// it is; portrait extends the dark top and bottom; landscape fills the
+// sides with the hero photo, blurred and darkened.
+function renderCover(canvas, state, w, h) {
+  const ctx = canvas.getContext("2d");
+  canvas.width = w;
+  canvas.height = h;
+  const scale = Math.min(w / DESIGN_W, h / DESIGN_H);
+  const dw = DESIGN_W * scale;
+  const dh = DESIGN_H * scale;
+  const ox = (w - dw) / 2;
+  const oy = (h - dh) / 2;
+  if (w > h) {
+    const heroImg = state.photos[state.hero.photo] && state.photos[state.hero.photo].img;
     ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(-0.2);
-    ctx.beginPath();
-    var spikes = 12;
-    for (var i = 0; i < spikes * 2; i++) {
-      var rad = i % 2 === 0 ? r : r * 0.62;
-      var a = (Math.PI * i) / spikes - Math.PI / 2;
-      var px = Math.cos(a) * rad;
-      var py = Math.sin(a) * rad;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+    ctx.filter = "blur(28px) brightness(0.45) saturate(1.2)";
+    if (heroImg && heroImg.naturalWidth) ctx.drawImage(heroImg, 0, 0, w, h);
+    else {
+      ctx.fillStyle = "#0D0716";
+      ctx.fillRect(0, 0, w, h);
     }
-    ctx.closePath();
-    ctx.fillStyle = "#ff2e88";
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = Math.max(2, r * 0.06);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = Math.round(r * 0.34) + "px Anton, sans-serif";
-    ctx.fillText("EST. 2026", 0, -r * 0.18);
-    ctx.font = Math.round(r * 0.26) + "px Anton, sans-serif";
-    ctx.fillText("ORIGINAL", 0, r * 0.22);
     ctx.restore();
+  } else {
+    ctx.fillStyle = "#0D0716";
+    ctx.fillRect(0, 0, w, h);
   }
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.scale(scale, scale);
+  drawDesign(ctx, state);
+  ctx.restore();
+  paintGrain(ctx, w, h);
+  paintVignette(ctx, w, h);
+}
 
-  var noiseCache = null;
-  function grainPattern(ctx) {
-    if (noiseCache) return noiseCache;
-    var n = document.createElement("canvas");
-    n.width = 140;
-    n.height = 140;
-    var nx = n.getContext("2d");
-    var d = nx.createImageData(140, 140);
-    for (var i = 0; i < d.data.length; i += 4) {
-      var v = (Math.random() * 255) | 0;
-      d.data[i] = v;
-      d.data[i + 1] = v;
-      d.data[i + 2] = v;
-      d.data[i + 3] = 28;
-    }
-    nx.putImageData(d, 0, 0);
-    noiseCache = ctx.createPattern(n, "repeat");
-    return noiseCache;
-  }
+const EXPORT_SIZES = {
+  square: { w: 1080, h: 1080, label: "Square · 1080 × 1080", file: "neon-shore-1080x1080.png" },
+  portrait: { w: 1080, h: 1350, label: "Portrait · 1080 × 1350", file: "neon-shore-1080x1350.png" },
+  wide: { w: 1920, h: 1080, label: "Wide · 1920 × 1080", file: "neon-shore-1920x1080.png" },
+};
 
-  var dotCache = null;
-  function halftonePattern(ctx, size) {
-    var key = size;
-    if (dotCache && dotCache.key === key) return dotCache.pat;
-    var n = document.createElement("canvas");
-    n.width = size;
-    n.height = size;
-    var nx = n.getContext("2d");
-    nx.fillStyle = "rgba(0,0,0,0.55)";
-    nx.beginPath();
-    nx.arc(size / 2, size / 2, size * 0.18, 0, Math.PI * 2);
-    nx.fill();
-    dotCache = { key: key, pat: ctx.createPattern(n, "repeat") };
-    return dotCache.pat;
-  }
-
-  // state: { layout, grade, caption, subcaption, captionSize, captionY,
-  //          photos: [{ img, name }], cells: [{ photo, ox, oy, zoom, stripText }],
-  //          effects: { grain, vignette, halftone, badge } }
-  // Returns the cell rectangles (canvas pixels) for hit-testing.
-  function renderCover(canvas, state) {
-    var W = canvas.width;
-    var H = canvas.height;
-    var ctx = canvas.getContext("2d");
-    var grade = (window.CoverGrades.GRADES[state.grade] || window.CoverGrades.GRADES.sunset);
-    var cells = layoutCells(state.layout, W, H);
-
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "#14101c";
-    ctx.fillRect(0, 0, W, H);
-
-    // Photos.
-    for (var i = 0; i < cells.length; i++) {
-      var slot = state.cells[i] || { photo: 0, ox: 0, oy: 0, zoom: 1 };
-      var photo = state.photos[slot.photo] || state.photos[0];
-      if (!photo || !photo.img) continue;
-      if (!photo.graded) photo.graded = {};
-      if (!photo.graded[state.grade]) {
-        photo.graded[state.grade] = window.CoverGrades.gradeImage(
-          photo.img, state.grade, 720
-        );
-      }
-      var graded = photo.graded[state.grade];
-      var slotWithText = {
-        ox: slot.ox || 0,
-        oy: slot.oy || 0,
-        zoom: slot.zoom || 1,
-        stripText: slot.stripText || state.subcaption || "neon shore",
-      };
-      drawCell(ctx, graded, cells[i], slotWithText);
-    }
-
-    // Colour wash over the whole cover.
-    var wash = ctx.createLinearGradient(0, 0, W, H);
-    wash.addColorStop(0, grade.wash[0]);
-    wash.addColorStop(1, grade.wash[1]);
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = grade.washAlpha;
-    ctx.fillStyle = wash;
-    ctx.fillRect(0, 0, W, H);
-    ctx.restore();
-
-    // Halftone dots, mostly visible in the shadows.
-    if (state.effects && state.effects.halftone) {
-      ctx.save();
-      ctx.globalCompositeOperation = "overlay";
-      ctx.globalAlpha = 0.16;
-      ctx.fillStyle = halftonePattern(ctx, Math.max(9, Math.round(W / 90)));
-      ctx.fillRect(0, 0, W, H);
-      ctx.restore();
-    }
-
-    drawCaption(ctx, W, H, state);
-    drawBadge(ctx, W, H, state);
-
-    // Vignette.
-    if (!state.effects || state.effects.vignette) {
-      var vg = ctx.createRadialGradient(
-        W / 2, H / 2, Math.min(W, H) * 0.42,
-        W / 2, H / 2, Math.max(W, H) * 0.75
-      );
-      vg.addColorStop(0, "rgba(0,0,0,0)");
-      vg.addColorStop(1, "rgba(0,0,0,0.38)");
-      ctx.fillStyle = vg;
-      ctx.fillRect(0, 0, W, H);
-    }
-
-    // Film grain last.
-    if (!state.effects || state.effects.grain) {
-      ctx.save();
-      ctx.globalCompositeOperation = "overlay";
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = grainPattern(ctx);
-      ctx.fillRect(0, 0, W, H);
-      ctx.restore();
-    }
-
-    renderCover.lastCells = cells;
-    return cells;
-  }
-
-  // Hit-test a canvas point against the last rendered cells.
-  function cellAtPoint(x, y) {
-    var cells = renderCover.lastCells || [];
-    for (var i = cells.length - 1; i >= 0; i--) {
-      var c = cells[i];
-      var px = x;
-      var py = y;
-      if (c.rot) {
-        var cx = c.x + c.w / 2;
-        var cy = c.y + c.h / 2;
-        var dx = x - cx;
-        var dy = y - cy;
-        var cos = Math.cos(-c.rot);
-        var sin = Math.sin(-c.rot);
-        px = cx + dx * cos - dy * sin;
-        py = cy + dx * sin + dy * cos;
-      }
-      if (px >= c.x && px <= c.x + c.w && py >= c.y && py <= c.y + c.h) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  window.CoverEngine = {
-    LAYOUTS: LAYOUTS,
-    layoutCells: layoutCells,
-    renderCover: renderCover,
-    cellAtPoint: cellAtPoint,
-  };
-})();
+function exportCover(state, sizeId) {
+  const size = EXPORT_SIZES[sizeId];
+  const canvas = document.createElement("canvas");
+  renderCover(canvas, state, size.w, size.h);
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
+}
