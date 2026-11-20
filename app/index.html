@@ -7,76 +7,88 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="top">
+<header class="topbar">
+  <div class="mark">NS</div>
   <div class="brand">
-    <span class="brand-mark">NS</span>
-    <div>
-      <h1>Neon Shore</h1>
-      <p>Cover Art Studio &mdash; turn any photo into a poster-style cover</p>
-    </div>
+    <h1>NEON SHORE</h1>
+    <p>Cover Art Studio — turn any photo into a poster-style cover</p>
   </div>
-  <p class="offline-note">Runs fully offline &middot; your photos never leave this machine</p>
+  <p class="offline">Runs fully offline · your photos never leave this machine</p>
 </header>
-
-<main class="app">
-  <section class="stage">
-    <canvas id="cover" width="720" height="720"></canvas>
-    <p class="hint">Click a panel to select it &middot; drag to move the photo &middot; scroll to zoom &middot; click a photo below to put it in the selected panel</p>
+<main class="studio">
+  <section class="preview-col">
+    <div class="canvas-wrap">
+      <canvas id="cover" width="1080" height="1080"></canvas>
+    </div>
+    <p class="hint">Click a panel to select it · drag to move the photo · scroll to zoom · click a photo below to put it in the selected panel</p>
+    <p class="status" id="status"></p>
   </section>
-
-  <aside class="panel">
+  <aside class="controls" id="controls">
     <section>
       <h2>Photos</h2>
       <label class="upload">+ Add your photos
-        <input id="upload" type="file" accept="image/*" multiple hidden>
+        <input type="file" id="fileInput" accept="image/*" multiple hidden>
       </label>
-      <div class="thumbs" id="thumbs"></div>
-      <div class="samples">
-        <button type="button" data-sample="boulevard">Sample: Boulevard</button>
-        <button type="button" data-sample="pier">Sample: Pier</button>
+      <div class="sample-row">
+        <button type="button" class="sample-btn" data-photo="pier">Sample: Pier</button>
+        <button type="button" class="sample-btn" data-photo="boulevard">Sample: Boulevard</button>
       </div>
+      <div class="photo-list" id="photoList"></div>
+      <p class="note">Face-safe crop: each panel starts framed on the upper third of its photo, where a face usually sits.</p>
     </section>
-
     <section>
       <h2>Layout</h2>
-      <div class="btn-row" id="layouts"></div>
+      <div class="chip-row" id="layoutList"></div>
     </section>
-
     <section>
-      <h2>Colour grade</h2>
-      <div class="btn-row" id="grades"></div>
+      <h2>Colour Grade</h2>
+      <div class="chip-row" id="gradeList"></div>
     </section>
-
     <section>
-      <h2>Caption</h2>
-      <input id="caption" type="text" value="NEON SHORE" maxlength="40" autocomplete="off">
-      <input id="subcaption" type="text" value="a sunset heist story" maxlength="60" autocomplete="off">
-      <label class="slider">Caption size
-        <input id="capSize" type="range" min="0.6" max="1.6" step="0.05" value="1">
+      <h2>Cast</h2>
+      <p class="note">Rename a character and the billing line at the bottom renames with them.</p>
+      <div class="cast-inputs" id="castInputs"></div>
+    </section>
+    <section>
+      <h2>Title</h2>
+      <label class="field"><span>Main title</span><input type="text" id="titleInput" maxlength="24"></label>
+      <label class="field"><span>Handwritten subtitle</span><input type="text" id="subtitleInput" maxlength="48"></label>
+      <label class="field"><span>Slogan</span><input type="text" id="sloganInput" maxlength="48"></label>
+      <label class="field"><span>Title size <b id="titleSizeVal">100%</b></span>
+        <input type="range" id="titleSize" min="70" max="130" value="100">
       </label>
     </section>
-
     <section>
-      <h2>Finish</h2>
-      <label class="check"><input id="fxGrain" type="checkbox" checked> Film grain</label>
-      <label class="check"><input id="fxVignette" type="checkbox" checked> Vignette</label>
-      <label class="check"><input id="fxHalftone" type="checkbox"> Halftone dots</label>
-      <label class="check"><input id="fxBadge" type="checkbox" checked> Star badge</label>
-      <button type="button" id="resetPos">Reset photo positions</button>
+      <h2>Quote</h2>
+      <label class="field"><span>Quote</span><input type="text" id="quoteInput" maxlength="64"></label>
+      <label class="field"><span>Quoted by</span><input type="text" id="quoteSourceInput" maxlength="32"></label>
+      <label class="field"><span>Stars</span>
+        <select id="starsSelect">
+          <option value="1">★☆☆☆☆</option>
+          <option value="2">★★☆☆☆</option>
+          <option value="3">★★★☆☆</option>
+          <option value="4" selected>★★★★☆</option>
+          <option value="5">★★★★★</option>
+        </select>
+      </label>
     </section>
-
+    <section>
+      <h2>Details</h2>
+      <label class="field"><span>Place · time strip</span><input type="text" id="locationInput" maxlength="40"></label>
+      <label class="field"><span>Ticket stub</span><input type="text" id="ticketInput" maxlength="12"></label>
+      <label class="check"><input type="checkbox" id="billingToggle" checked> Billing block</label>
+      <label class="check"><input type="checkbox" id="badgeToggle" checked> EST. 2026 star badge</label>
+    </section>
     <section>
       <h2>Export PNG</h2>
-      <div class="btn-row" id="sizes"></div>
-      <button type="button" id="download" class="primary">Download PNG</button>
+      <div class="export-row">
+        <button type="button" class="export-btn" data-size="square">Square · 1080 × 1080</button>
+        <button type="button" class="export-btn" data-size="portrait">Portrait · 1080 × 1350</button>
+        <button type="button" class="export-btn" data-size="wide">Wide · 1920 × 1080</button>
+      </div>
     </section>
   </aside>
 </main>
-
-<footer class="foot">
-  <p>Neon Shore is an original fan-made tool. All artwork, lettering and fonts are original or OFL-licensed; no Rockstar Games logos, artwork or fonts are used. Fonts: Anton &amp; Pacifico (SIL Open Font License, see fonts/OFL.txt).</p>
-</footer>
-
 <script src="src/grades.js"></script>
 <script src="src/cover.js"></script>
 <script src="src/main.js"></script>
