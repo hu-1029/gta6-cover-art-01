@@ -1,45 +1,46 @@
-// serve.ts — tiny static server for local testing.
-// Serves the app/ directory on http://localhost:8080 using only the
-// Node standard library. Run: node serve.ts
-import { createReadStream, existsSync, statSync } from "node:fs";
-import { join, extname, normalize } from "node:path";
+// Neon Shore — a tiny static server for the studio, port 8080.
+// Serves only the files under app/, nothing else on the machine.
+
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const here = fileURLToPath(new URL(".", import.meta.url));
-const root = join(here, "app");
+const root = resolve(fileURLToPath(new URL("./app", import.meta.url)));
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".mjs": "text/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
-  ".gif": "image/gif",
-  ".svg": "image/svg+xml",
   ".ttf": "font/ttf",
-  ".woff": "font/woff",
-  ".woff2": "font/woff2",
   ".txt": "text/plain; charset=utf-8",
+  ".json": "application/json",
 };
 
-const server = createServer((req, res) => {
-  const raw = decodeURIComponent((req.url || "/").split("?")[0]);
-  const safe = normalize(join(root, raw === "/" ? "index.html" : raw));
-  if (!safe.startsWith(root) || !existsSync(safe) || !statSync(safe).isFile()) {
-    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
-    res.end("not found\n");
-    return;
+const server = createServer(async (req, res) => {
+  try {
+    const url = new URL(req.url ?? "/", "http://localhost:8080");
+    let path = decodeURIComponent(url.pathname);
+    if (path === "/") path = "/index.html";
+    const file = resolve(join(root, normalize(path).replace(/^(\.\.[/\\])+/, "")));
+    if (file !== root && !file.startsWith(root + sep)) {
+      res.writeHead(403);
+      res.end("forbidden");
+      return;
+    }
+    const data = await readFile(file);
+    res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" });
+    res.end(data);
+  } catch {
+    res.writeHead(404);
+    res.end("not found");
   }
-  res.writeHead(200, {
-    "content-type": TYPES[extname(safe).toLowerCase()] || "application/octet-stream",
-  });
-  createReadStream(safe).pipe(res);
 });
 
 server.listen(8080, () => {
-  console.log("Neon Shore cover studio at http://localhost:8080");
+  console.log("Neon Shore studio at http://localhost:8080");
 });
