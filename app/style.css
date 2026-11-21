@@ -1,3 +1,6 @@
+/* Neon Tide Cover Studio — editor chrome. The cover itself is drawn on
+   canvas (see src/cover.js); this file only styles the editor around it. */
+
 @font-face {
   font-family: 'Anton';
   src: url('fonts/Anton-Regular.ttf') format('truetype');
@@ -14,257 +17,188 @@
   font-display: swap;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-body {
+html, body {
   margin: 0;
-  background: #0d0a1a;
-  color: #f5efdf;
-  font-family: 'Anton', 'Arial Narrow', sans-serif;
+  padding: 0;
+  background: #14082a;
+  color: #f2ecff;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
 }
 
-header {
+.topbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
-  padding: 12px 20px;
-  background: #120e24;
-  border-bottom: 2px solid #ffc93c;
+  padding: 14px 20px;
+  background: #1d0636;
+  border-bottom: 2px solid #f5c542;
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: #ffc93c;
-  color: #0d0a1a;
-  font-size: 22px;
-  letter-spacing: 1px;
-}
-
-header h1 {
+.topbar h1 {
   margin: 0;
+  font-family: Anton, 'Arial Narrow', sans-serif;
   font-size: 26px;
-  font-weight: 400;
   letter-spacing: 1px;
+  color: #ffd94d;
+  text-transform: uppercase;
 }
 
-header h1 em {
-  font-family: 'Pacifico', cursive;
-  font-style: normal;
-  color: #ff2e88;
-  font-size: 22px;
-  margin-left: 8px;
-}
+.presets { display: flex; gap: 8px; }
 
-.presets {
-  margin-left: auto;
-  display: flex;
-  gap: 10px;
-}
-
-main {
+.workspace {
   display: flex;
   gap: 20px;
-  padding: 20px;
   align-items: flex-start;
+  padding: 20px;
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
-.preview {
-  flex: 1 1 auto;
-  min-width: 0;
-}
+.stage { flex: 1 1 640px; min-width: 0; }
 
-#cover {
+#coverCanvas {
   display: block;
   width: 100%;
-  max-width: 720px;
+  max-width: 640px;
   height: auto;
-  aspect-ratio: 1;
-  background: #120e24;
-  border: 2px solid #2a2148;
-  border-radius: 8px;
+  margin: 0 auto;
+  background: #2b0a4e;
+  border: 2px solid #3a1166;
+  border-radius: 6px;
   cursor: grab;
   touch-action: none;
 }
 
-#cover:active {
-  cursor: grabbing;
-}
+#coverCanvas:active { cursor: grabbing; }
 
 .hint {
-  color: #8f86a8;
-  font-size: 15px;
-  letter-spacing: 1px;
-  margin: 10px 0 0;
-}
-
-aside {
-  flex: 0 0 360px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  max-width: 640px;
+  margin: 12px auto 0;
+  color: #8f7fb8;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .panel {
-  background: #1b1436;
-  border: 1px solid #2a2148;
-  border-radius: 12px;
-  padding: 16px;
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: #1d0636;
+  border: 1px solid #3a1166;
+  border-radius: 8px;
+  padding: 18px;
 }
 
 .panel h2 {
-  margin: 0 0 12px;
-  font-size: 18px;
-  font-weight: 400;
-  letter-spacing: 3px;
-  color: #ffc93c;
+  margin: 0 0 10px;
+  font-family: Anton, 'Arial Narrow', sans-serif;
+  font-size: 15px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #f5c542;
 }
 
-.buttons {
+.btnrow {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
 button {
-  font-family: 'Anton', 'Arial Narrow', sans-serif;
-  font-size: 16px;
-  letter-spacing: 1px;
-  color: #f5efdf;
-  background: #241b4a;
-  border: 1px solid #3a2f6e;
-  border-radius: 8px;
-  padding: 9px 14px;
+  appearance: none;
+  border: 1px solid #5b3a8c;
+  background: #2b0a4e;
+  color: #f2ecff;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 6px;
   cursor: pointer;
 }
 
-button:hover {
-  border-color: #ffc93c;
-}
+button:hover { border-color: #f5c542; }
 
 button.active {
-  background: #ffc93c;
-  color: #0d0a1a;
-  border-color: #ffc93c;
+  background: #f5c542;
+  border-color: #f5c542;
+  color: #1d0636;
+  font-weight: 700;
 }
 
-button.primary {
-  background: #ff2e88;
-  border-color: #ff2e88;
-  color: #ffffff;
-}
-
-label {
+.panel label {
   display: block;
-  font-size: 14px;
-  letter-spacing: 2px;
-  color: #8f86a8;
-  margin: 10px 0 4px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #b9a8dd;
 }
 
-input[type='text'],
-select {
+.panel input[type="text"] {
+  display: block;
   width: 100%;
-  padding: 9px 10px;
-  background: #120e24;
-  color: #f5efdf;
-  border: 1px solid #3a2f6e;
-  border-radius: 8px;
-  font-family: 'Anton', 'Arial Narrow', sans-serif;
-  font-size: 16px;
-  letter-spacing: 1px;
+  margin-top: 5px;
+  padding: 8px 10px;
+  border: 1px solid #5b3a8c;
+  border-radius: 6px;
+  background: #14082a;
+  color: #f2ecff;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-input[type='text']:focus,
-select:focus {
-  outline: 2px solid #ffc93c;
-}
-
-.row {
-  display: flex;
-  gap: 10px;
-}
-
-.row > * {
-  flex: 1;
-}
-
-.cell-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 6px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-
-.cell-row.selected {
-  border-color: #ffc93c;
-  background: #241b4a;
-}
-
-.cell-tag {
-  flex: 0 0 58px;
-  font-size: 13px;
-  letter-spacing: 1px;
-  color: #ffc93c;
-}
-
-.cell-row input {
-  flex: 1;
-}
-
-.cell-row select {
-  flex: 0 0 110px;
+.panel input[type="text"]:focus {
+  outline: none;
+  border-color: #f5c542;
 }
 
 .upload {
   display: inline-block;
-  margin-top: 10px;
   padding: 9px 14px;
-  background: #241b4a;
-  border: 1px dashed #ffc93c;
-  border-radius: 8px;
+  border: 1px dashed #f5c542;
+  border-radius: 6px;
+  color: #ffd94d;
   cursor: pointer;
-  letter-spacing: 1px;
 }
 
-.upload input {
-  display: none;
-}
+.upload input[type="file"] { display: none; }
 
-/* Cover-only mode: the page is just the square cover, for screenshots. */
+/* Cover-only mode (?shot=cover / ?shot=cover2): the canvas fills the
+   viewport and all editor chrome is hidden. Used for screenshots. */
 body.cover-only {
-  background: #120e24;
+  background: #2b0a4e;
+  overflow: hidden;
 }
 
-body.cover-only header,
-body.cover-only aside,
+body.cover-only .topbar,
+body.cover-only .panel,
 body.cover-only .hint {
   display: none;
 }
 
-body.cover-only main {
-  padding: 0;
+body.cover-only .workspace {
   display: block;
-}
-
-body.cover-only .preview {
-  width: 1080px;
-  height: 1080px;
-}
-
-body.cover-only #cover {
   max-width: none;
-  width: 1080px;
-  height: 1080px;
+  padding: 0;
+  margin: 0;
+}
+
+body.cover-only .stage {
+  flex: none;
+  width: 100vw;
+  height: 100vh;
+}
+
+body.cover-only #coverCanvas {
+  width: 100vmin;
+  height: 100vmin;
+  max-width: none;
+  margin: 0 auto;
   border: 0;
   border-radius: 0;
 }

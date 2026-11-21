@@ -7,94 +7,63 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <div class="logo">NT</div>
-  <h1>Neon Tide <em>cover studio</em></h1>
+<header class="topbar">
+  <h1>Neon Tide cover studio</h1>
   <div class="presets">
-    <button type="button" data-preset="neon" class="active">Neon Tide</button>
-    <button type="button" data-preset="midnight">Midnight Mile</button>
+    <button type="button" data-preset="neon-tide" class="active">Neon Tide</button>
+    <button type="button" data-preset="midnight-mile">Midnight Mile</button>
   </div>
 </header>
-<main>
-  <section class="preview">
-    <canvas id="cover" width="1080" height="1080"></canvas>
-    <p class="hint">Drag a photo to move its face point &middot; scroll over it to zoom &middot; click a panel below to pick it</p>
+<main class="workspace">
+  <section class="stage">
+    <canvas id="coverCanvas" width="1080" height="1080"></canvas>
+    <p class="hint">Drag a photo to reframe it. Scroll on a photo to zoom. Click a photo to select it, then upload to replace it.</p>
   </section>
-  <aside>
-    <section class="panel">
-      <h2>LAYOUT</h2>
-      <div class="buttons">
-        <button type="button" data-layout="cast" class="active">Mosaic</button>
-        <button type="button" data-layout="hero">Hero Four</button>
-        <button type="button" data-layout="full">Full Frame</button>
-        <button type="button" data-layout="nine">Nine Grid</button>
-        <button type="button" data-layout="polaroid">Polaroids</button>
+  <aside class="panel">
+    <section>
+      <h2>Layout</h2>
+      <div class="btnrow" id="layoutBtns">
+        <button type="button" data-layout="mosaic" class="active">Mosaic</button>
+        <button type="button" data-layout="hero-four">Hero Four</button>
+        <button type="button" data-layout="full-frame">Full Frame</button>
+        <button type="button" data-layout="nine-grid">Nine Grid</button>
+        <button type="button" data-layout="polaroids">Polaroids</button>
       </div>
     </section>
-    <section class="panel">
-      <h2>COLOUR GRADE</h2>
-      <div class="buttons">
-        <button type="button" data-grade="vice" class="active">Vice Pink</button>
+    <section>
+      <h2>Colour grade</h2>
+      <div class="btnrow" id="gradeBtns">
+        <button type="button" data-grade="vice-pink" class="active">Vice Pink</button>
         <button type="button" data-grade="sunset">Sunset</button>
-        <button type="button" data-grade="neon">Neon Night</button>
-        <button type="button" data-grade="golden">Golden Hour</button>
+        <button type="button" data-grade="neon-night">Neon Night</button>
+        <button type="button" data-grade="golden-hour">Golden Hour</button>
       </div>
     </section>
-    <section class="panel">
-      <h2>COVER COPY</h2>
-      <label for="in-title">Title</label>
-      <input type="text" id="in-title" value="NEON TIDE">
-      <label for="in-subtitle">Subtitle</label>
-      <input type="text" id="in-subtitle" value="chasing the last light">
-      <label for="in-tagline">Tagline</label>
-      <input type="text" id="in-tagline" value="EVERY SUNSET HAS A PRICE">
-      <label for="in-quote">Quote</label>
-      <input type="text" id="in-quote" value="A SUNSET WITH TEETH.">
-      <div class="row">
-        <div>
-          <label for="in-stars">Stars</label>
-          <select id="in-stars">
-            <option value="1">1 &#9733;</option>
-            <option value="2">2 &#9733;</option>
-            <option value="3">3 &#9733;</option>
-            <option value="4">4 &#9733;</option>
-            <option value="4.5" selected>4.5 &#9733;</option>
-            <option value="5">5 &#9733;</option>
-          </select>
-        </div>
-        <div>
-          <label for="in-source">Quoted by</label>
-          <input type="text" id="in-source" value="THE SHORELINE POST">
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label for="in-place">Place</label>
-          <input type="text" id="in-place" value="NEON SHORE">
-        </div>
-        <div>
-          <label for="in-time">Time</label>
-          <input type="text" id="in-time" value="7:15 PM">
-        </div>
-      </div>
+    <section>
+      <h2>Cover copy</h2>
+      <label>Title <input id="copyTitle" type="text" value="NEON TIDE"></label>
+      <label>Subtitle <input id="copySubtitle" type="text" value="chasing the last light"></label>
+      <label>Tagline <input id="copyTagline" type="text" value="EVERY SUNSET HAS A PRICE"></label>
+      <label>Quote <input id="copyQuote" type="text" value="A SUNSET WITH TEETH."></label>
     </section>
-    <section class="panel">
-      <h2>PANELS</h2>
-      <div id="cell-list"></div>
-      <label class="upload">Upload a photo
-        <input type="file" id="upload" accept="image/*">
+    <section>
+      <h2>Photo</h2>
+      <label class="upload">Replace selected photo
+        <input id="uploadInput" type="file" accept="image/*">
       </label>
     </section>
-    <section class="panel">
-      <h2>EXPORT PNG</h2>
-      <div class="buttons">
-        <button type="button" data-export="1080x1080" class="primary">1080 &times; 1080</button>
-        <button type="button" data-export="1080x1350" class="primary">1080 &times; 1350</button>
-        <button type="button" data-export="1920x1080" class="primary">1920 &times; 1080</button>
+    <section>
+      <h2>Export PNG</h2>
+      <div class="btnrow">
+        <button type="button" id="export1080">1080 &times; 1080</button>
+        <button type="button" id="export1350">1080 &times; 1350</button>
+        <button type="button" id="export1920">1920 &times; 1080</button>
       </div>
     </section>
   </aside>
 </main>
-<script type="module" src="src/main.js"></script>
+<script src="src/grades.js"></script>
+<script src="src/cover.js"></script>
+<script src="src/main.js"></script>
 </body>
 </html>
