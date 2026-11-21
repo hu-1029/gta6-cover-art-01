@@ -3,70 +3,76 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Neon Tide — Cover Studio</title>
+<title>Neon Tide Cover Studio</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><span class="logo">NT</span> Neon Tide <em>cover studio</em></div>
+  <div class="brand"><span class="logo">NT</span><span class="brand-name">Neon Tide</span><span class="brand-sub">cover studio</span></div>
   <div class="presets">
-    <button class="preset-btn" data-preset="tide">Neon Tide</button>
-    <button class="preset-btn" data-preset="mile">Midnight Mile</button>
+    <button data-preset="tide" class="active">Neon Tide</button>
+    <button data-preset="mile">Midnight Mile</button>
   </div>
 </header>
 <main class="studio">
-  <section class="preview">
-    <canvas id="cover" width="1080" height="1080"></canvas>
-    <p class="hint">Drag the photo to reframe it, scroll to zoom. Your photo never leaves this browser.</p>
+  <section class="preview-pane">
+    <canvas id="preview" width="1080" height="1080"></canvas>
+    <div class="exports">
+      <span>Export PNG</span>
+      <button data-export="1080x1080">1080 × 1080</button>
+      <button data-export="1080x1350">1080 × 1350</button>
+      <button data-export="1920x1080">1920 × 1080</button>
+    </div>
+    <p class="hint">Drag a photo to reframe it, scroll to zoom. Photos never leave this device.</p>
   </section>
   <aside class="controls">
-    <section class="panel">
+    <section>
       <h2>Layout</h2>
-      <div id="layout-btns" class="btn-row"></div>
+      <div class="btn-row">
+        <button data-layout="cast" class="active">Cast Grid</button>
+        <button data-layout="hero">Hero Four</button>
+        <button data-layout="full">Full Frame</button>
+        <button data-layout="nine">Nine Grid</button>
+        <button data-layout="polaroids">Polaroids</button>
+      </div>
     </section>
-    <section class="panel">
+    <section>
       <h2>Colour Grade</h2>
-      <div id="grade-btns" class="btn-row"></div>
+      <div class="btn-row">
+        <button data-grade="sunset" class="active">Sunset</button>
+        <button data-grade="neon">Neon Night</button>
+        <button data-grade="golden">Golden Hour</button>
+      </div>
     </section>
-    <section class="panel">
+    <section>
       <h2>Cover Copy</h2>
-      <label>Title<input id="in-title" type="text" maxlength="24"></label>
-      <label>Subtitle<input id="in-subtitle" type="text" maxlength="48"></label>
-      <label>Tagline<input id="in-tagline" type="text" maxlength="48"></label>
-      <label>Quote<input id="in-quote" type="text" maxlength="64"></label>
-      <div class="duo">
+      <label>Title<input id="in-title" type="text" value="NEON TIDE"></label>
+      <label>Subtitle<input id="in-subtitle" type="text" value="chasing the last light"></label>
+      <label>Tagline<input id="in-tagline" type="text" value="EVERY SUNSET HAS A PRICE"></label>
+      <label>Quote<input id="in-quote" type="text" value="A SUNSET WITH TEETH."></label>
+      <div class="two-col">
         <label>Stars
           <select id="in-stars">
             <option value="5">5 ★</option>
-            <option value="4.5">4.5 ★</option>
+            <option value="4.5" selected>4.5 ★</option>
             <option value="4">4 ★</option>
             <option value="3.5">3.5 ★</option>
             <option value="3">3 ★</option>
           </select>
         </label>
-        <label>Quoted by<input id="in-quotedby" type="text" maxlength="40"></label>
+        <label>Quoted by<input id="in-quoted-by" type="text" value="THE SHORELINE POST"></label>
       </div>
-      <div class="duo">
-        <label>Place<input id="in-place" type="text" maxlength="24"></label>
-        <label>Time<input id="in-time" type="text" maxlength="12"></label>
+      <div class="two-col">
+        <label>Place<input id="in-place" type="text" value="NEON SHORE"></label>
+        <label>Time<input id="in-time" type="text" value="7:15 PM"></label>
       </div>
     </section>
-    <section class="panel">
+    <section>
       <h2>Cast Labels</h2>
-      <label>Main<input class="label-input" data-i="0" type="text" maxlength="16"></label>
-      <label>Cell 1<input class="label-input" data-i="1" type="text" maxlength="16"></label>
-      <label>Cell 2<input class="label-input" data-i="2" type="text" maxlength="16"></label>
-      <label>Cell 3<input class="label-input" data-i="3" type="text" maxlength="16"></label>
-      <label>Cell 4<input class="label-input" data-i="4" type="text" maxlength="16"></label>
-    </section>
-    <section class="panel">
-      <h2>Your Photo</h2>
-      <label class="upload">Upload a photo<input id="upload" type="file" accept="image/*"></label>
-      <p class="fine">Replaces the main photo. Nothing is uploaded anywhere.</p>
-    </section>
-    <section class="panel">
-      <h2>Export PNG</h2>
-      <div id="export-btns" class="btn-row"></div>
+      <label>Cell 1<input id="in-label-0" type="text" value="THE DRIVER"></label>
+      <label>Cell 2<input id="in-label-1" type="text" value="THE LOOKOUT"></label>
+      <label>Cell 3<input id="in-label-2" type="text" value="THE FIXER"></label>
+      <label>Cell 4<input id="in-label-3" type="text" value="THE INSIDER"></label>
     </section>
   </aside>
 </main>

@@ -1,27 +1,24 @@
+/* Neon Tide Cover Studio — dark neon editor, offline, no external refs. */
 @font-face {
-  font-family: "Anton";
-  src: url("fonts/Anton-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
+  font-family: 'Anton';
+  src: url('fonts/Anton-Regular.ttf') format('truetype');
+  font-weight: 700;
   font-display: swap;
 }
-
 @font-face {
-  font-family: "Pacifico";
-  src: url("fonts/Pacifico-Regular.ttf") format("truetype");
+  font-family: 'Pacifico';
+  src: url('fonts/Pacifico-Regular.ttf') format('truetype');
   font-weight: 400;
-  font-style: normal;
   font-display: swap;
 }
 
 * { box-sizing: border-box; }
 
-html, body {
+body {
   margin: 0;
-  padding: 0;
-  background: #0d0a1f;
-  color: #f2ead8;
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: #0a0618;
+  color: #f5eeda;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
 .topbar {
@@ -29,40 +26,37 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  border-bottom: 2px solid #f2c230;
-  background: #120a1e;
+  border-bottom: 1px solid #2a1f4d;
+  background: #0d0a1a;
 }
 
-.brand {
-  font-family: Anton, sans-serif;
-  font-size: 26px;
-  letter-spacing: 1px;
-  color: #f6ead2;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brand em {
-  font-family: Pacifico, cursive;
-  font-size: 20px;
-  color: #ff2e88;
-  letter-spacing: 0;
-}
-
+.brand { display: flex; align-items: baseline; gap: 10px; }
 .logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  background: #f2c230;
-  color: #140b02;
+  background: #ffd21f;
+  color: #111;
+  font-family: Anton, sans-serif;
   font-size: 20px;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
+.brand-name { font-family: Anton, sans-serif; font-size: 24px; letter-spacing: 1px; }
+.brand-sub { font-family: Pacifico, cursive; color: #ff2e7e; font-size: 18px; }
 
 .presets { display: flex; gap: 8px; }
+
+button {
+  font-family: Anton, sans-serif;
+  letter-spacing: 1px;
+  background: #17102e;
+  color: #f5eeda;
+  border: 1px solid #2a1f4d;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 14px;
+}
+button:hover { border-color: #ffd21f; }
+button.active { background: #ffd21f; color: #111; border-color: #ffd21f; }
 
 .studio {
   display: flex;
@@ -71,141 +65,70 @@ html, body {
   align-items: flex-start;
 }
 
-.preview { flex: 1 1 auto; min-width: 0; }
-
-#cover {
+.preview-pane { flex: 1 1 auto; min-width: 0; }
+#preview {
   width: 100%;
   max-width: 760px;
   height: auto;
   display: block;
-  border: 1px solid #3a2f5a;
-  border-radius: 12px;
-  background: #120a1e;
-  cursor: grab;
-  touch-action: none;
+  background: #0d0a1a;
+  border: 1px solid #2a1f4d;
+  border-radius: 8px;
 }
 
-#cover:active { cursor: grabbing; }
-
-.hint {
-  color: #9a8fb5;
-  font-size: 13px;
-  margin: 10px 2px 0;
-}
+.exports { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.exports span { font-family: Anton, sans-serif; color: #ffd21f; letter-spacing: 1px; }
+.hint { color: #8f8aa3; font-size: 13px; }
 
 .controls {
   flex: 0 0 340px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
-
-.panel {
-  background: #1a1230;
-  border: 1px solid #3a2f5a;
-  border-radius: 12px;
-  padding: 14px 16px;
+.controls section {
+  background: #17102e;
+  border: 1px solid #2a1f4d;
+  border-radius: 8px;
+  padding: 14px;
 }
-
-.panel h2 {
+.controls h2 {
   margin: 0 0 10px;
   font-family: Anton, sans-serif;
-  font-size: 15px;
+  color: #ffd21f;
+  font-size: 16px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #f2c230;
 }
-
-.btn-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-button {
-  font-family: Anton, sans-serif;
-  font-size: 14px;
-  letter-spacing: 1px;
-  color: #f6ead2;
-  background: #241a44;
-  border: 1px solid #4a3d75;
-  border-radius: 8px;
-  padding: 8px 14px;
-  cursor: pointer;
-}
-
-button:hover { border-color: #f2c230; }
-
-button.active {
-  background: #f2c230;
-  color: #140b02;
-  border-color: #f2c230;
-}
-
-label {
-  display: block;
-  font-size: 12px;
-  color: #b7a8d8;
-  margin-bottom: 10px;
-}
-
-label:last-child { margin-bottom: 0; }
-
-input[type="text"], select {
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.controls label { display: block; font-size: 13px; color: #c9c2e0; margin-bottom: 10px; }
+.controls input, .controls select {
   display: block;
   width: 100%;
   margin-top: 4px;
+  background: #0d0a1a;
+  color: #f5eeda;
+  border: 1px solid #2a1f4d;
+  border-radius: 6px;
   padding: 8px 10px;
   font-size: 14px;
-  color: #f6ead2;
-  background: #120a1e;
-  border: 1px solid #4a3d75;
-  border-radius: 8px;
-  outline: none;
 }
+.controls input:focus, .controls select:focus { outline: 2px solid #ffd21f; }
+.two-col { display: flex; gap: 10px; }
+.two-col label { flex: 1; }
 
-input[type="text"]:focus, select:focus { border-color: #f2c230; }
-
-.duo { display: flex; gap: 10px; }
-.duo label { flex: 1; }
-
-.upload {
-  display: inline-block;
-  padding: 8px 14px;
-  font-family: Anton, sans-serif;
-  font-size: 14px;
-  letter-spacing: 1px;
-  color: #140b02;
-  background: #f2c230;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.upload input { display: none; }
-
-.fine {
-  color: #9a8fb5;
-  font-size: 12px;
-  margin: 8px 0 0;
-}
-
-/* Screenshot scenes: cover only, no editor chrome. */
-body.cover-only { background: #120a1e; }
+/* cover-only mode: used by ?shot=cover and ?shot=cover2 for screenshots */
+body.cover-only { background: #0d0a1a; }
 body.cover-only .topbar,
 body.cover-only .controls,
+body.cover-only .exports,
 body.cover-only .hint { display: none; }
 body.cover-only .studio { padding: 0; }
-body.cover-only .preview { flex: 1; }
-body.cover-only #cover {
-  width: 100vw;
-  height: 100vh;
+body.cover-only .preview-pane { margin: 0 auto; }
+body.cover-only #preview {
   max-width: none;
+  width: 1080px;
+  height: 1080px;
   border: 0;
   border-radius: 0;
-  object-fit: contain;
-}
-
-@media (max-width: 900px) {
-  .studio { flex-direction: column; }
-  .controls { flex: 1 1 auto; width: 100%; }
 }
