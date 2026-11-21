@@ -1,48 +1,56 @@
-// Colour grades for Neon Tide Cover Studio.
-// Each grade is a full palette: the cover background, the panel ink, the
-// cream body text, the gold accent, the pink badge colour, and the stops of
-// the striped chrome title gradient (top to bottom).
-
+// Colour grades for Neon Tide: three looks, one cover.
+// Each grade carries the page background, the gold ink, the pink accent,
+// the title gradient stops, the photo tint and the scrim used over photos.
 export const GRADES = {
   sunset: {
     id: 'sunset',
     label: 'Sunset',
-    bg: '#0d0a1a',
-    panel: '#17102e',
-    ink: '#f5eeda',
-    cream: '#fff3d6',
-    gold: '#ffd21f',
-    goldDim: '#c9a227',
-    pink: '#ff2e7e',
-    titleStops: ['#ffe95c', '#ffc21f', '#ff8a1f', '#ff5e3a', '#ff2e7e'],
-    scrim: 'rgba(13, 10, 26, 0.72)',
+    bg: '#120e24',
+    panel: '#1b1436',
+    gold: '#ffc93c',
+    goldDeep: '#ff9d2e',
+    pink: '#ff2e88',
+    ink: '#f5efdf',
+    dim: '#8f86a8',
+    titleStops: ['#ffe45c', '#ffb52e', '#ff7a2e', '#ff2e7e'],
+    tint: '#ff7a2e',
+    tintAlpha: 0.10,
+    scrim: 'rgba(10,6,24,0.88)',
   },
   neon: {
     id: 'neon',
     label: 'Neon Night',
-    bg: '#070312',
-    panel: '#120a2a',
-    ink: '#eaf6ff',
-    cream: '#dff4ff',
-    gold: '#7df9ff',
-    goldDim: '#3fb8c9',
-    pink: '#ff2ed1',
-    titleStops: ['#a5f3ff', '#5ee6ff', '#38b6ff', '#7a5cff', '#ff2ed1'],
-    scrim: 'rgba(7, 3, 18, 0.72)',
+    bg: '#070418',
+    panel: '#120a30',
+    gold: '#2ee6ff',
+    goldDeep: '#7a5cff',
+    pink: '#ff2ee6',
+    ink: '#eef6ff',
+    dim: '#7f8fc9',
+    titleStops: ['#8ef6ff', '#2ee6ff', '#7a5cff', '#ff2ee6'],
+    tint: '#3a2eff',
+    tintAlpha: 0.14,
+    scrim: 'rgba(4,2,20,0.88)',
   },
   golden: {
     id: 'golden',
     label: 'Golden Hour',
-    bg: '#120b02',
-    panel: '#221503',
-    ink: '#fdf3d8',
-    cream: '#ffedb8',
-    gold: '#ffc93c',
-    goldDim: '#c9962a',
-    pink: '#ff7a1a',
-    titleStops: ['#ffe9a3', '#ffd23c', '#ffae1f', '#ff8a1f', '#ff6a1a'],
-    scrim: 'rgba(18, 11, 2, 0.72)',
+    bg: '#1a1206',
+    panel: '#2a1e08',
+    gold: '#ffd76a',
+    goldDeep: '#e8a13a',
+    pink: '#ff5c3a',
+    ink: '#fff6e0',
+    dim: '#a89a78',
+    titleStops: ['#ffedb0', '#ffd76a', '#f5a83c', '#ff5c3a'],
+    tint: '#ffb52e',
+    tintAlpha: 0.12,
+    scrim: 'rgba(24,16,4,0.88)',
   },
 };
 
 export const GRADE_IDS = Object.keys(GRADES);
+
+export function gradeById(id) {
+  return GRADES[id] || GRADES.sunset;
+}
