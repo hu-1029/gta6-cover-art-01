@@ -1,96 +1,75 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Neon Shore — Cover Art Studio</title>
+<title>Neon Tide — Cover Studio</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="mark">NS</div>
-  <div class="brand">
-    <h1>NEON SHORE</h1>
-    <p>Cover Art Studio — turn any photo into a poster-style cover</p>
+  <div class="brand"><span class="logo">NT</span> Neon Tide <em>cover studio</em></div>
+  <div class="presets">
+    <button class="preset-btn" data-preset="tide">Neon Tide</button>
+    <button class="preset-btn" data-preset="mile">Midnight Mile</button>
   </div>
-  <p class="offline">Runs fully offline · your photos never leave this machine</p>
 </header>
 <main class="studio">
-  <section class="preview-col">
-    <div class="canvas-wrap">
-      <canvas id="cover" width="1080" height="1080"></canvas>
-    </div>
-    <p class="hint">Click a panel to select it · drag to move the photo · scroll to zoom · click a photo below to put it in the selected panel</p>
-    <p class="status" id="status"></p>
+  <section class="preview">
+    <canvas id="cover" width="1080" height="1080"></canvas>
+    <p class="hint">Drag the photo to reframe it, scroll to zoom. Your photo never leaves this browser.</p>
   </section>
-  <aside class="controls" id="controls">
-    <section>
-      <h2>Photos</h2>
-      <label class="upload">+ Add your photos
-        <input type="file" id="fileInput" accept="image/*" multiple hidden>
-      </label>
-      <div class="sample-row">
-        <button type="button" class="sample-btn" data-photo="pier">Sample: Pier</button>
-        <button type="button" class="sample-btn" data-photo="boulevard">Sample: Boulevard</button>
-      </div>
-      <div class="photo-list" id="photoList"></div>
-      <p class="note">Face-safe crop: each panel starts framed on the upper third of its photo, where a face usually sits.</p>
-    </section>
-    <section>
+  <aside class="controls">
+    <section class="panel">
       <h2>Layout</h2>
-      <div class="chip-row" id="layoutList"></div>
+      <div id="layout-btns" class="btn-row"></div>
     </section>
-    <section>
+    <section class="panel">
       <h2>Colour Grade</h2>
-      <div class="chip-row" id="gradeList"></div>
+      <div id="grade-btns" class="btn-row"></div>
     </section>
-    <section>
-      <h2>Cast</h2>
-      <p class="note">Rename a character and the billing line at the bottom renames with them.</p>
-      <div class="cast-inputs" id="castInputs"></div>
-    </section>
-    <section>
-      <h2>Title</h2>
-      <label class="field"><span>Main title</span><input type="text" id="titleInput" maxlength="24"></label>
-      <label class="field"><span>Handwritten subtitle</span><input type="text" id="subtitleInput" maxlength="48"></label>
-      <label class="field"><span>Slogan</span><input type="text" id="sloganInput" maxlength="48"></label>
-      <label class="field"><span>Title size <b id="titleSizeVal">100%</b></span>
-        <input type="range" id="titleSize" min="70" max="130" value="100">
-      </label>
-    </section>
-    <section>
-      <h2>Quote</h2>
-      <label class="field"><span>Quote</span><input type="text" id="quoteInput" maxlength="64"></label>
-      <label class="field"><span>Quoted by</span><input type="text" id="quoteSourceInput" maxlength="32"></label>
-      <label class="field"><span>Stars</span>
-        <select id="starsSelect">
-          <option value="1">★☆☆☆☆</option>
-          <option value="2">★★☆☆☆</option>
-          <option value="3">★★★☆☆</option>
-          <option value="4" selected>★★★★☆</option>
-          <option value="5">★★★★★</option>
-        </select>
-      </label>
-    </section>
-    <section>
-      <h2>Details</h2>
-      <label class="field"><span>Place · time strip</span><input type="text" id="locationInput" maxlength="40"></label>
-      <label class="field"><span>Ticket stub</span><input type="text" id="ticketInput" maxlength="12"></label>
-      <label class="check"><input type="checkbox" id="billingToggle" checked> Billing block</label>
-      <label class="check"><input type="checkbox" id="badgeToggle" checked> EST. 2026 star badge</label>
-    </section>
-    <section>
-      <h2>Export PNG</h2>
-      <div class="export-row">
-        <button type="button" class="export-btn" data-size="square">Square · 1080 × 1080</button>
-        <button type="button" class="export-btn" data-size="portrait">Portrait · 1080 × 1350</button>
-        <button type="button" class="export-btn" data-size="wide">Wide · 1920 × 1080</button>
+    <section class="panel">
+      <h2>Cover Copy</h2>
+      <label>Title<input id="in-title" type="text" maxlength="24"></label>
+      <label>Subtitle<input id="in-subtitle" type="text" maxlength="48"></label>
+      <label>Tagline<input id="in-tagline" type="text" maxlength="48"></label>
+      <label>Quote<input id="in-quote" type="text" maxlength="64"></label>
+      <div class="duo">
+        <label>Stars
+          <select id="in-stars">
+            <option value="5">5 ★</option>
+            <option value="4.5">4.5 ★</option>
+            <option value="4">4 ★</option>
+            <option value="3.5">3.5 ★</option>
+            <option value="3">3 ★</option>
+          </select>
+        </label>
+        <label>Quoted by<input id="in-quotedby" type="text" maxlength="40"></label>
       </div>
+      <div class="duo">
+        <label>Place<input id="in-place" type="text" maxlength="24"></label>
+        <label>Time<input id="in-time" type="text" maxlength="12"></label>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Cast Labels</h2>
+      <label>Main<input class="label-input" data-i="0" type="text" maxlength="16"></label>
+      <label>Cell 1<input class="label-input" data-i="1" type="text" maxlength="16"></label>
+      <label>Cell 2<input class="label-input" data-i="2" type="text" maxlength="16"></label>
+      <label>Cell 3<input class="label-input" data-i="3" type="text" maxlength="16"></label>
+      <label>Cell 4<input class="label-input" data-i="4" type="text" maxlength="16"></label>
+    </section>
+    <section class="panel">
+      <h2>Your Photo</h2>
+      <label class="upload">Upload a photo<input id="upload" type="file" accept="image/*"></label>
+      <p class="fine">Replaces the main photo. Nothing is uploaded anywhere.</p>
+    </section>
+    <section class="panel">
+      <h2>Export PNG</h2>
+      <div id="export-btns" class="btn-row"></div>
     </section>
   </aside>
 </main>
-<script src="src/grades.js"></script>
-<script src="src/cover.js"></script>
-<script src="src/main.js"></script>
+<script type="module" src="src/main.js"></script>
 </body>
 </html>
