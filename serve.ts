@@ -1,8 +1,7 @@
 // A tiny static server for app/ (Node 22, standard library only), so the
 // entry can be tried locally without a build step: `node serve.ts` serves
-// app/ on http://localhost:8080. It sends the MIME types an offline web app
-// needs, refuses any path outside app/, and otherwise does nothing clever:
-// this is a development convenience, not a web server for the internet.
+// app/ on http://localhost:8080. Plain JavaScript style: no type
+// annotations, so `node --check` passes on this file too.
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
@@ -31,11 +30,6 @@ const MIME = {
   '.woff': 'font/woff',
   '.ttf': 'font/ttf',
   '.otf': 'font/otf',
-  '.bin': 'application/octet-stream',
-  '.wasm': 'application/wasm',
-  '.wav': 'audio/wav',
-  '.mp3': 'audio/mpeg',
-  '.ogg': 'audio/ogg',
   '.txt': 'text/plain; charset=utf-8',
 };
 
@@ -50,25 +44,24 @@ createServer((request, response) => {
   }
   if (pathname.endsWith('/')) pathname += 'index.html';
   const file = resolve(join(root, normalize(pathname)));
-  if (file !== root && !file.startsWith(root + sep)) {
+  if (!file.startsWith(root + sep) && file !== root) {
     response.writeHead(403).end('forbidden');
     return;
   }
-  let size;
+  let stat;
   try {
-    const stats = statSync(file);
-    if (!stats.isFile()) throw new Error('not a file');
-    size = stats.size;
+    stat = statSync(file);
   } catch {
     response.writeHead(404).end('not found');
     return;
   }
-  response.writeHead(200, {
-    'content-type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream',
-    'content-length': size,
-    'cache-control': 'no-store',
-  });
+  if (!stat.isFile()) {
+    response.writeHead(404).end('not found');
+    return;
+  }
+  const type = MIME[extname(file).toLowerCase()] || 'application/octet-stream';
+  response.writeHead(200, { 'content-type': type, 'content-length': stat.size });
   createReadStream(file).pipe(response);
-}).listen(port, '127.0.0.1', () => {
-  console.log(`app/ is on http://localhost:${port}`);
+}).listen(port, () => {
+  console.log('Neon Tide serves app/ on http://localhost:' + port);
 });

@@ -15,40 +15,41 @@ node serve.ts
 # open http://localhost:8080
 ```
 
-Pick a preset (**Neon Tide** or **Midnight Mile**), drag a photo to reframe
-it, scroll to zoom, edit the copy, then export a PNG.
+Pick a preset (Neon Tide or Midnight Mile), or load your own photo, drag it
+to place the face, scroll to zoom, edit every line of copy, then export a
+PNG in 1080 &times; 1080, 1080 &times; 1350 or 1920 &times; 1080.
 
 ## What it makes
 
-- **Five layouts**: Cast Grid (big hero photo + four cast cells), Hero Four,
-  Full Frame, Nine Grid and Polaroids.
-- **Face-safe cropping**: the crop window defaults to the face (measured at
-  30% from the top of each sample photo) so no one loses their head; drag to
-  reframe, scroll to zoom.
-- **Poster furniture**: quote bar with stars and source, striped chrome
-  title, handwritten subtitle, tagline, location and time strip, VOL. 1
-  ticket, billing block generated from the visible cast labels, barcode,
-  NS mark and an EST. 2026 ORIGINAL seal.
-- **Three colour grades**: Sunset, Neon Night and Golden Hour.
-- **Three export sizes**: 1080×1080, 1080×1350 and 1920×1080 PNG.
+A multi-panel poster in the style of the GTA 6 key art: a big hero photo
+with a role tag, a quote bar with stars and a press source, a full-width
+striped chrome title with a handwritten subtitle, a tagline, a row of cast
+panels, a billing block (A NEON SHORE PICTURE, STARRING …) and a COMING SOON
+footer with a barcode and an EST. 2026 ORIGINAL starburst.
+
+- **5 layouts**: Cast Grid (hero + 4 cast panels), Hero Four, Full Frame,
+  Nine Grid and Polaroids.
+- **3 colour grades**: Sunset, Neon Night and Golden Hour.
+- **Face-safe crops**: each panel keeps its face centred (the focus sits
+  30% down the panel by default); drag any photo to reposition it, scroll
+  to zoom, and edit every role label.
+- **Two built-in presets** with their own copy: NEON TIDE (pier fisherman,
+  "chasing the last light") and MIDNIGHT MILE (boulevard driver,
+  "the city never blinks").
 
 ## Files
 
-- `app/index.html` — editor shell (header, preview canvas, controls).
-- `app/style.css` — dark neon editor styling and the cover-only shot mode.
-- `app/src/cover.js` — the cover render engine (layouts, cropping, title,
-  billing, barcode, grain and vignette).
-- `app/src/grades.js` — the three colour grades.
-- `app/src/main.js` — editor wiring: presets, inputs, drag and wheel
-  cropping, `?shot=` scenes and PNG export.
-- `app/fonts/` — Anton and Pacifico under the SIL Open Font License (see
-  `app/fonts/OFL.txt`).
-- `app/samples/` — the two bundled sample photos (pier, boulevard).
-- `main.ts` — copies `app/` and `screenshots/` to the output directory and
-  writes `dossier.json` with the vendored make.fun library.
-- `serve.ts` — a tiny static server for local use (`:8080`).
+| File | What it does |
+|---|---|
+| `app/index.html` | The editor page: preview canvas, layout/grade/copy panels |
+| `app/style.css` | Dark neon editor styling, Anton + Pacifico `@font-face` |
+| `app/src/cover.js` | The cover renderer: layouts, crops, title, billing, export |
+| `app/src/grades.js` | The three colour grades |
+| `app/src/main.js` | Editor wiring: presets, inputs, drag/zoom, upload, `?shot=` scenes |
+| `app/fonts/` | Anton + Pacifico (SIL Open Font License, see `OFL.txt`) |
+| `app/samples/` | The two kit sample photos |
+| `main.ts` | Hands the app in: copies `app/` + `screenshots/`, writes `dossier.json` |
+| `serve.ts` | Tiny static server for local tries (`:8080`) |
 
-## Licence
-
-MIT. Fonts are under the SIL Open Font License 1.1. This project is not
-affiliated with Rockstar Games and uses no Rockstar logo, artwork or font.
+Everything is original work: no Rockstar Games logo, artwork or font is
+used anywhere. The two fonts are SIL OFL licensed and ship under `app/fonts/`.

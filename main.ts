@@ -1,8 +1,7 @@
-// Neon Tide Cover Studio — entrypoint: copies app/ and screenshots/ to the
-// output directory and writes dossier.json with the vendored make.fun
-// library. Only the plumbing, not the cover art the bounty asks for.
-// Run it with: MAKEFUN_OUTPUT_DIR=out node main.ts
-
+// Neon Tide hands itself in: copies app/ and screenshots/ beside this file
+// to /output and writes /output/dossier.json with the vendored make.fun
+// library. Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output:
+//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,11 +15,11 @@ cpSync(join(here, 'app'), join(out, 'app'), { recursive: true });
 mkdirSync(join(out, 'screenshots'), { recursive: true });
 if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true });
 
-// The scorer's own caps: only text_max_bytes shapes the bytes; the others
-// refuse an entry the scorer would refuse (more than 4 screenshots or one
-// over 256 KiB; more than 993 files in app/ or 48 MiB of app files, in all,
-// or a path under app/ over 1000 bytes). buildDossier returns raw bytes:
-// write them as they are, never through JSON.stringify.
+// The scorer's own caps (reference/gate.json): only text_max_bytes shapes
+// the bytes; the others refuse an entry the scorer would refuse (more than
+// 4 screenshots or one over 256 KiB; more than 993 files in app/ or 48 MiB
+// of app files, in all, or a path under app/ over 1000 bytes).
+// buildDossier returns the raw dossier bytes: write them straight to disk.
 writeFileSync(
   join(out, 'dossier.json'),
   buildDossier(out, {
