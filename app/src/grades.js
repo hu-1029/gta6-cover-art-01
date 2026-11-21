@@ -1,7 +1,23 @@
-// Colour grades for Neon Tide: three looks, one cover.
+// Colour grades for Neon Tide: four looks, one cover.
 // Each grade carries the page background, the gold ink, the pink accent,
 // the title gradient stops, the photo tint and the scrim used over photos.
+// Vice Pink is the default: the hot magenta-purple sunset the top covers use.
 export const GRADES = {
+  vice: {
+    id: 'vice',
+    label: 'Vice Pink',
+    bg: '#1a0520',
+    panel: '#2a0a30',
+    gold: '#ffc93c',
+    goldDeep: '#ff9d2e',
+    pink: '#ff2e88',
+    ink: '#fff0f5',
+    dim: '#b08bb0',
+    titleStops: ['#ffe45c', '#ff9de2', '#ff2e88', '#b44dff'],
+    tint: '#ff2e88',
+    tintAlpha: 0.12,
+    scrim: 'rgba(26,5,32,0.88)',
+  },
   sunset: {
     id: 'sunset',
     label: 'Sunset',
@@ -52,5 +68,5 @@ export const GRADES = {
 export const GRADE_IDS = Object.keys(GRADES);
 
 export function gradeById(id) {
-  return GRADES[id] || GRADES.sunset;
+  return GRADES[id] || GRADES.vice;
 }

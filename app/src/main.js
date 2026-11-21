@@ -7,6 +7,8 @@ import { COVER, PRESETS, makeState, applyPreset, renderCover, exportCanvas, visi
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
+const PHOTO_NAMES = ['Pier', 'Boulevard', 'Redhead', 'Curly', 'Elder', 'Young Man'];
+
 const params = new URLSearchParams(location.search);
 const shot = params.get('shot') || '';
 const state = makeState(params.get('preset') === 'midnight' ? 'midnight' : 'neon');
@@ -27,6 +29,7 @@ function loadImage(src) {
 
 function loadFonts() {
   const loads = [
+    document.fonts.load('190px Anton'),
     document.fonts.load('150px Anton'),
     document.fonts.load('64px Pacifico'),
     document.fonts.load('40px Anton'),
@@ -74,7 +77,7 @@ function buildCellRows() {
     });
     const photo = document.createElement('select');
     photo.setAttribute('aria-label', 'Photo');
-    ['Pier', 'Boulevard'].forEach((name, idx) => {
+    PHOTO_NAMES.forEach((name, idx) => {
       const opt = document.createElement('option');
       opt.value = String(idx);
       opt.textContent = name;
@@ -172,17 +175,23 @@ function bindCopy() {
   });
 }
 
-// Hit-test the cover in 1080 space: hero and cell rects for the layouts
-// that show them in a row; returns the cell object or null.
+// Hit-test the cover in 1080 space: the mosaic and row rects for the
+// layouts that show them; returns the cell object or null.
 function hitCell(px, py) {
   const L = state.layout;
   const inRect = (r) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
   if (L === 'cast') {
-    if (inRect({ x: 36, y: 110, w: 1008, h: 440 })) return { cell: state.hero, rect: { x: 36, y: 110, w: 1008, h: 440 } };
-    const w = (1008 - 24) / 4;
-    for (let i = 0; i < 4; i++) {
-      const r = { x: 36 + i * (w + 8), y: 810, w, h: 115 };
-      if (inRect(r)) return { cell: state.cells[i], rect: r };
+    const bw = (1008 - 16) / 3;
+    const rects = [
+      { cell: state.cells[0], rect: { x: 36, y: 110, w: 246, h: 360 } },
+      { cell: state.hero, rect: { x: 290, y: 110, w: 500, h: 360 } },
+      { cell: state.cells[1], rect: { x: 798, y: 110, w: 246, h: 360 } },
+      { cell: state.cells[2], rect: { x: 36, y: 478, w: bw, h: 320 } },
+      { cell: state.cells[3], rect: { x: 36 + bw + 8, y: 478, w: bw, h: 320 } },
+      { cell: state.cells[4], rect: { x: 36 + (bw + 8) * 2, y: 478, w: bw, h: 320 } },
+    ];
+    for (const hit of rects) {
+      if (inRect(hit.rect)) return hit;
     }
   } else if (L === 'hero') {
     if (inRect({ x: 36, y: 110, w: 1008, h: 360 })) return { cell: state.hero, rect: { x: 36, y: 110, w: 1008, h: 360 } };
@@ -252,11 +261,15 @@ async function boot() {
   if (shot === 'cover2') applyPreset(state, 'midnight');
   if (shot === 'editor') applyPreset(state, 'midnight');
   document.body.classList.toggle('cover-only', coverOnly);
-  const [pier, boulevard] = await Promise.all([
+  const [pier, boulevard, redhead, curly, elder, youngman] = await Promise.all([
     loadImage('samples/pier.jpg'),
     loadImage('samples/boulevard.jpg'),
+    loadImage('samples/cast-redhead.jpg'),
+    loadImage('samples/cast-curly.jpg'),
+    loadImage('samples/cast-elder.jpg'),
+    loadImage('samples/cast-youngman.jpg'),
   ]);
-  state.photos = [pier, boulevard];
+  state.photos = [pier, boulevard, redhead, curly, elder, youngman];
   await loadFonts();
   bindCopy();
   bindCanvas();

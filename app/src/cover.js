@@ -1,16 +1,22 @@
 // Neon Tide cover renderer: draws the whole 1080 x 1080 poster on a canvas.
-// Five layouts, three grades, face-safe crops, striped chrome title, billing.
-// No network, no Rockstar art: only the two sample photos and the OFL fonts.
+// Five layouts, four grades, six cast photos, face-safe crops, a huge
+// striped chrome title pressed over the hero photo, billing.
+// No network, no Rockstar art: only the bundled sample photos and OFL fonts.
 import { gradeById } from './grades.js';
 
 export const COVER = 1080;
 const MARGIN = 36;
 const CW = COVER - MARGIN * 2;
 
-// The two sample photos and their face centres (measured by hand).
+// The six sample photos and their face centres (measured by hand).
+// 0 pier, 1 boulevard, 2 redhead, 3 curly, 4 elder, 5 young man.
 export const FACE = [
-  { x: 0.42, y: 0.22 }, // pier
-  { x: 0.5, y: 0.22 }, // boulevard
+  { x: 0.42, y: 0.22 },
+  { x: 0.5, y: 0.22 },
+  { x: 0.5, y: 0.35 },
+  { x: 0.5, y: 0.45 },
+  { x: 0.5, y: 0.35 },
+  { x: 0.5, y: 0.4 },
 ];
 
 export const PRESETS = {
@@ -26,25 +32,26 @@ export const PRESETS = {
     hero: { photo: 0, label: 'THE CAPTAIN' },
     cells: [
       { photo: 1, label: 'THE DRIVER' },
-      { photo: 0, label: 'THE LOOKOUT' },
-      { photo: 1, label: 'THE FIXER' },
-      { photo: 0, label: 'THE INSIDER' },
+      { photo: 2, label: 'THE FIXER' },
+      { photo: 3, label: 'THE LOOKOUT' },
+      { photo: 4, label: 'THE BOSS' },
+      { photo: 5, label: 'THE INSIDER' },
     ],
     nine: [
       { photo: 0, label: 'THE CAPTAIN' },
       { photo: 1, label: 'THE DRIVER' },
-      { photo: 0, label: 'THE LOOKOUT' },
-      { photo: 1, label: 'THE FIXER' },
+      { photo: 2, label: 'THE FIXER' },
+      { photo: 3, label: 'THE LOOKOUT' },
+      { photo: 4, label: 'THE BOSS' },
+      { photo: 5, label: 'THE INSIDER' },
       { photo: 0, label: 'THE CAPTAIN' },
-      { photo: 1, label: 'THE INSIDER' },
-      { photo: 0, label: 'THE LOOKOUT' },
       { photo: 1, label: 'THE DRIVER' },
-      { photo: 0, label: 'THE FIXER' },
+      { photo: 2, label: 'THE FIXER' },
     ],
     cards: [
       { photo: 0, label: 'THE CAPTAIN', caption: 'the last light' },
       { photo: 1, label: 'THE DRIVER', caption: 'no brakes' },
-      { photo: 0, label: 'THE LOOKOUT', caption: 'sunset with teeth' },
+      { photo: 5, label: 'THE INSIDER', caption: 'four lanes' },
     ],
   },
   midnight: {
@@ -59,25 +66,26 @@ export const PRESETS = {
     hero: { photo: 1, label: 'THE DRIVER' },
     cells: [
       { photo: 0, label: 'THE CAPTAIN' },
-      { photo: 1, label: 'THE LOOKOUT' },
-      { photo: 0, label: 'THE FIXER' },
-      { photo: 1, label: 'THE INSIDER' },
+      { photo: 3, label: 'THE LOOKOUT' },
+      { photo: 2, label: 'THE FIXER' },
+      { photo: 5, label: 'THE INSIDER' },
+      { photo: 4, label: 'THE BOSS' },
     ],
     nine: [
       { photo: 1, label: 'THE DRIVER' },
       { photo: 0, label: 'THE CAPTAIN' },
-      { photo: 1, label: 'THE LOOKOUT' },
-      { photo: 0, label: 'THE FIXER' },
-      { photo: 1, label: 'THE INSIDER' },
-      { photo: 0, label: 'THE CAPTAIN' },
+      { photo: 3, label: 'THE LOOKOUT' },
+      { photo: 2, label: 'THE FIXER' },
+      { photo: 5, label: 'THE INSIDER' },
+      { photo: 4, label: 'THE BOSS' },
       { photo: 1, label: 'THE DRIVER' },
-      { photo: 0, label: 'THE LOOKOUT' },
-      { photo: 1, label: 'THE FIXER' },
+      { photo: 0, label: 'THE CAPTAIN' },
+      { photo: 3, label: 'THE LOOKOUT' },
     ],
     cards: [
       { photo: 1, label: 'THE DRIVER', caption: 'the city never blinks' },
       { photo: 0, label: 'THE CAPTAIN', caption: 'last light' },
-      { photo: 1, label: 'THE INSIDER', caption: 'four lanes' },
+      { photo: 4, label: 'THE BOSS', caption: 'sunset with teeth' },
     ],
   },
 };
@@ -94,7 +102,7 @@ export function makeState(presetName) {
   });
   return {
     layout: 'cast',
-    grade: 'sunset',
+    grade: 'vice',
     preset: presetName || 'neon',
     title: p.title,
     subtitle: p.subtitle,
@@ -108,7 +116,7 @@ export function makeState(presetName) {
     cells: p.cells.map(cell),
     nine: p.nine.map(cell),
     cards: p.cards.map(cell),
-    photos: [null, null],
+    photos: [null, null, null, null, null, null],
   };
 }
 
@@ -124,6 +132,7 @@ export function visibleCells(state) {
   if (state.layout === 'full') return [state.hero];
   if (state.layout === 'nine') return state.nine;
   if (state.layout === 'polaroid') return state.cards;
+  if (state.layout === 'hero') return [state.hero, ...state.cells.slice(0, 4)];
   return [state.hero, ...state.cells];
 }
 
@@ -307,7 +316,9 @@ function fitFont(ctx, text, maxW, startSize, family) {
   return size;
 }
 
-// Striped chrome title: gradient fill, then thin dark stripes clipped to the glyphs.
+// Striped chrome title, pressed over the photo: a thick white outline and
+// a soft drop shadow lift the gradient glyphs off the picture, then thin
+// dark stripes are clipped to the glyphs.
 function drawTitle(ctx, text, cx, top, maxW, startSize, stops) {
   setLetterSpacing(ctx, 1);
   const size = fitFont(ctx, text, maxW, startSize, 'Anton, sans-serif');
@@ -316,10 +327,20 @@ function drawTitle(ctx, text, cx, top, maxW, startSize, stops) {
   const baseline = top + size * 0.82;
   const grad = ctx.createLinearGradient(0, top, 0, baseline + size * 0.12);
   stops.forEach((c, i) => grad.addColorStop(i / (stops.length - 1), c));
-  ctx.fillStyle = grad;
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText(text, x, baseline);
   ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(6, size * 0.07);
+  ctx.strokeStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 6;
+  ctx.textBaseline = 'alphabetic';
+  ctx.strokeText(text, x, baseline);
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.fillStyle = grad;
+  ctx.fillText(text, x, baseline);
   ctx.globalCompositeOperation = 'source-atop';
   ctx.fillStyle = 'rgba(0,0,0,0.10)';
   for (let y = top; y < baseline; y += 12) ctx.fillRect(x, y, w, 2);
@@ -439,23 +460,25 @@ function drawFooter(ctx, g) {
   setLetterSpacing(ctx, 0);
 }
 
-function drawSubtitleTagline(ctx, state, g, titleBaseline, titleSize) {
+function drawSubtitleTagline(ctx, state, g, titleBaseline, titleSize, taglineY) {
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
-  ctx.font = '64px Pacifico, cursive';
-  ctx.fillText(state.subtitle, 540, titleBaseline + 52);
+  ctx.font = '56px Pacifico, cursive';
+  ctx.fillText(state.subtitle, 540, titleBaseline + 46);
   ctx.fillStyle = g.gold;
   ctx.font = '44px Anton, sans-serif';
   setLetterSpacing(ctx, 6);
-  ctx.fillText(state.tagline, 540, titleBaseline + 118);
+  // The tagline normally sits right under the subtitle, but the mosaic
+  // moves it below the photos so it never crosses a face.
+  ctx.fillText(state.tagline, 540, taglineY || titleBaseline + 118);
   ctx.textAlign = 'left';
   setLetterSpacing(ctx, 0);
 }
 
-function cellRow(ctx, state, g, y, h) {
+function cellRow(ctx, state, g, y, h, cells) {
   const gap = 8;
   const w = (CW - gap * 3) / 4;
-  state.cells.forEach((cell, i) => {
+  cells.forEach((cell, i) => {
     const x = MARGIN + i * (w + gap);
     const rect = { x, y, w, h };
     drawPhoto(ctx, state.photos[cell.photo], rect, cell.fx, cell.fy, cell.zoom, g.tint, g.tintAlpha);
@@ -466,16 +489,39 @@ function cellRow(ctx, state, g, y, h) {
 function drawLayout(ctx, state, g) {
   const L = state.layout;
   if (L === 'cast') {
-    const hero = { x: MARGIN, y: 110, w: CW, h: 440 };
+    // Mosaic: big hero centre-top, one small cell each side, three cells
+    // across the bottom row. Six different photos, no repeats.
+    const hero = { x: 290, y: 110, w: 500, h: 360 };
+    const left = { x: MARGIN, y: 110, w: 246, h: 360 };
+    const right = { x: 798, y: 110, w: 246, h: 360 };
+    const bw = (CW - 16) / 3;
+    const bottom = [
+      { x: MARGIN, y: 478, w: bw, h: 320 },
+      { x: MARGIN + bw + 8, y: 478, w: bw, h: 320 },
+      { x: MARGIN + (bw + 8) * 2, y: 478, w: bw, h: 320 },
+    ];
+    drawPhoto(ctx, state.photos[state.cells[0].photo], left, state.cells[0].fx, state.cells[0].fy, state.cells[0].zoom, g.tint, g.tintAlpha);
+    drawRoleTag(ctx, left.x + 10, left.y + 10, state.cells[0].label, 22);
     drawPhoto(ctx, state.photos[state.hero.photo], hero, state.hero.fx, state.hero.fy, state.hero.zoom, g.tint, g.tintAlpha);
     drawRoleTag(ctx, hero.x + 12, hero.y + 12, state.hero.label, 28);
-    drawStarburst(ctx, 968, 168, 62, g.pink);
-    drawPlaceStrip(ctx, state, hero.x + 12, hero.y + hero.h - 56);
-    drawVolPill(ctx, hero.x + hero.w - 12, hero.y + hero.h - 54);
-    const t = drawTitle(ctx, state.title, 540, 560, CW, 150, g.titleStops);
-    drawSubtitleTagline(ctx, state, g, t.baseline, t.size);
-    cellRow(ctx, state, g, 810, 115);
-    drawBilling(ctx, state, g, 968, 1000);
+    drawPhoto(ctx, state.photos[state.cells[1].photo], right, state.cells[1].fx, state.cells[1].fy, state.cells[1].zoom, g.tint, g.tintAlpha);
+    drawRoleTag(ctx, right.x + 10, right.y + 10, state.cells[1].label, 22);
+    state.cells.slice(2).forEach((cell, i) => {
+      const rect = bottom[i];
+      drawPhoto(ctx, state.photos[cell.photo], rect, cell.fx, cell.fy, cell.zoom, g.tint, g.tintAlpha);
+      drawRoleTag(ctx, rect.x + 10, rect.y + 10, cell.label, 22);
+    });
+    drawStarburst(ctx, 985, 735, 62, g.pink);
+    drawVolPill(ctx, hero.x + hero.w - 12, hero.y + 12);
+    drawPlaceStrip(ctx, state, bottom[0].x + 12, bottom[0].y + bottom[0].h - 56);
+    // The title presses over the bottom of the hero photo; the subtitle
+    // sits right under it, still inside the hero, so neither crosses a
+    // face or a role tag in the bottom row. The tagline moves below the
+    // photos. The seal sits on the bottom-right cell so a wide title
+    // (MIDNIGHT MILE) cannot cover its text.
+    const t = drawTitle(ctx, state.title, 540, 280, CW, 150, g.titleStops);
+    drawSubtitleTagline(ctx, state, g, t.baseline, t.size, 830);
+    drawBilling(ctx, state, g, 900, 935);
     return;
   }
   if (L === 'hero') {
@@ -485,8 +531,8 @@ function drawLayout(ctx, state, g) {
     drawStarburst(ctx, 968, 168, 62, g.pink);
     drawPlaceStrip(ctx, state, hero.x + 12, hero.y + hero.h - 56);
     drawVolPill(ctx, hero.x + hero.w - 12, hero.y + hero.h - 54);
-    cellRow(ctx, state, g, 480, 120);
-    const t = drawTitle(ctx, state.title, 540, 620, CW, 140, g.titleStops);
+    cellRow(ctx, state, g, 480, 120, state.cells.slice(0, 4));
+    const t = drawTitle(ctx, state.title, 540, 620, CW, 150, g.titleStops);
     drawSubtitleTagline(ctx, state, g, t.baseline, t.size);
     drawBilling(ctx, state, g, 930, 965);
     return;
@@ -503,7 +549,7 @@ function drawLayout(ctx, state, g) {
     drawStarburst(ctx, 968, 168, 62, g.pink);
     drawPlaceStrip(ctx, state, hero.x + 12, hero.y + hero.h - 140);
     drawVolPill(ctx, hero.x + hero.w - 12, hero.y + hero.h - 138);
-    const t = drawTitle(ctx, state.title, 540, 640, CW, 120, g.titleStops);
+    const t = drawTitle(ctx, state.title, 540, 640, CW, 130, g.titleStops);
     drawSubtitleTagline(ctx, state, g, t.baseline, t.size);
     drawBilling(ctx, state, g, 950, 985);
     return;
@@ -544,7 +590,7 @@ function drawLayout(ctx, state, g) {
     return;
   }
   // polaroid
-  const t = drawTitle(ctx, state.title, 540, 110, CW, 130, g.titleStops);
+  const t = drawTitle(ctx, state.title, 540, 110, CW, 140, g.titleStops);
   drawSubtitleTagline(ctx, state, g, t.baseline, t.size);
   const cards = [
     { x: 90, y: 330, rot: -0.07 },
