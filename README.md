@@ -21,18 +21,21 @@ PNG in 1080 &times; 1080, 1080 &times; 1350 or 1920 &times; 1080.
 
 ## What it makes
 
-A multi-panel poster in the style of the GTA 6 key art: a big hero photo
-with a role tag, a quote bar with stars and a press source, a full-width
-striped chrome title with a handwritten subtitle, a tagline, a row of cast
-panels, a billing block (A NEON SHORE PICTURE, STARRING …) and a COMING SOON
-footer with a barcode and an EST. 2026 ORIGINAL starburst.
+A multi-panel poster in the style of the GTA 6 key art: a six-photo mosaic
+with a big hero, a quote bar with stars and a press source, a huge striped
+chrome title pressed over the hero photo with a handwritten subtitle, a
+tagline, a billing block (A NEON SHORE PICTURE, STARRING …) and a COMING
+SOON footer with a barcode and an EST. 2026 ORIGINAL starburst.
 
-- **5 layouts**: Cast Grid (hero + 4 cast panels), Hero Four, Full Frame,
-  Nine Grid and Polaroids.
-- **3 colour grades**: Sunset, Neon Night and Golden Hour.
+- **5 layouts**: Mosaic (hero + 5 cast panels, six different photos),
+  Hero Four, Full Frame, Nine Grid and Polaroids.
+- **4 colour grades**: Vice Pink (the default hot magenta sunset), Sunset,
+  Neon Night and Golden Hour.
 - **Face-safe crops**: each panel keeps its face centred (the focus sits
   30% down the panel by default); drag any photo to reposition it, scroll
   to zoom, and edit every role label.
+- **Six built-in photos**: the two kit samples plus four cast portraits, so
+  the mosaic never repeats a face.
 - **Two built-in presets** with their own copy: NEON TIDE (pier fisherman,
   "chasing the last light") and MIDNIGHT MILE (boulevard driver,
   "the city never blinks").
@@ -44,10 +47,10 @@ footer with a barcode and an EST. 2026 ORIGINAL starburst.
 | `app/index.html` | The editor page: preview canvas, layout/grade/copy panels |
 | `app/style.css` | Dark neon editor styling, Anton + Pacifico `@font-face` |
 | `app/src/cover.js` | The cover renderer: layouts, crops, title, billing, export |
-| `app/src/grades.js` | The three colour grades |
+| `app/src/grades.js` | The four colour grades |
 | `app/src/main.js` | Editor wiring: presets, inputs, drag/zoom, upload, `?shot=` scenes |
 | `app/fonts/` | Anton + Pacifico (SIL Open Font License, see `OFL.txt`) |
-| `app/samples/` | The two kit sample photos |
+| `app/samples/` | Six sample photos: two kit samples, four cast portraits |
 | `main.ts` | Hands the app in: copies `app/` + `screenshots/`, writes `dossier.json` |
 | `serve.ts` | Tiny static server for local tries (`:8080`) |
 

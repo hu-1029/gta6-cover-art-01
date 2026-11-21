@@ -2,6 +2,9 @@
 // to /output and writes /output/dossier.json with the vendored make.fun
 // library. Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// The app ships six sample photos (two kit samples plus four cast
+// portraits) and four colour grades; the dossier caps below are the
+// scorer's own, so a local run refuses exactly what the scorer refuses.
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +21,8 @@ if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), joi
 // The scorer's own caps (reference/gate.json): only text_max_bytes shapes
 // the bytes; the others refuse an entry the scorer would refuse (more than
 // 4 screenshots or one over 256 KiB; more than 993 files in app/ or 48 MiB
-// of app files, in all, or a path under app/ over 1000 bytes).
+// of app files, in all, or a path under app/ over 1000 bytes). The six
+// sample photos are the bulkiest part of app/ and stay well under the cap.
 // buildDossier returns the raw dossier bytes: write them straight to disk.
 writeFileSync(
   join(out, 'dossier.json'),
