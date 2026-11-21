@@ -1,284 +1,215 @@
-// Editor wiring for Neon Tide — Cover Studio.
-// Owns the state, the preset copy sets, the controls, drag / wheel cropping,
-// the ?shot= scenes the screenshots use, and the three PNG exports.
-// The poster itself is drawn by cover.js; the palettes live in grades.js.
+// Neon Tide Cover Studio — editor wiring.
+// Preset switching, layout and grade controls, cover-copy inputs, drag and
+// wheel cropping on the preview, ?shot= scenes for the dossier screenshots,
+// and the three PNG export sizes. Runs fully offline.
 
-import { drawCover, renderToCanvas, loadImage, LAYOUTS, EXPORT_SIZES, FACE } from "./cover.js";
-import { GRADES, GRADE_ORDER } from "./grades.js";
+import { PRESETS, LAYOUTS, makeState, applyPreset, loadPhotos, drawCover, renderToSize } from './cover.js';
+import { GRADES, GRADE_IDS } from './grades.js';
 
-const PRESETS = {
-  tide: {
-    mainPhoto: "pier",
-    title: "NEON TIDE",
-    subtitle: "chasing the last light",
-    tagline: "EVERY SUNSET HAS A PRICE",
-    quote: "A SUNSET WITH TEETH.",
-    stars: 4.5,
-    quotedBy: "THE SHORELINE POST",
-    place: "NEON SHORE",
-    time: "7:15 PM",
-    labels: ["THE CAPTAIN", "THE DRIVER", "THE LOOKOUT", "THE FIXER", "THE INSIDER"],
-  },
-  mile: {
-    mainPhoto: "boulevard",
-    title: "MIDNIGHT MILE",
-    subtitle: "the city never blinks",
-    tagline: "FOUR LANES · NO BRAKES",
-    quote: "FASTER THAN THE RUMOUR.",
-    stars: 5,
-    quotedBy: "THE BOULEVARD GAZETTE",
-    place: "BOULEVARD",
-    time: "11:48 PM",
-    labels: ["THE DRIVER", "THE CAPTAIN", "THE LOOKOUT", "THE FIXER", "THE INSIDER"],
-  },
-};
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
 
-const state = {
-  preset: "tide",
-  layout: "cast",
-  grade: "sunset",
-  photos: {},
-  mainPhoto: "pier",
-  title: "",
-  subtitle: "",
-  tagline: "",
-  quote: "",
-  stars: 4.5,
-  quotedBy: "",
-  place: "",
-  time: "",
-  labels: [],
-  crops: { main: { dx: 0, dy: 0, zoom: 1 }, cells: [{}, {}, {}, {}] },
-};
+let state = makeState('tide');
+let regions = { main: null, cells: [] };
+let drag = null;
 
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-
-function applyPreset(key) {
-  const p = PRESETS[key];
-  state.preset = key;
-  state.mainPhoto = p.mainPhoto;
-  state.title = p.title;
-  state.subtitle = p.subtitle;
-  state.tagline = p.tagline;
-  state.quote = p.quote;
-  state.stars = p.stars;
-  state.quotedBy = p.quotedBy;
-  state.place = p.place;
-  state.time = p.time;
-  state.labels = [...p.labels];
-  state.crops = { main: { dx: 0, dy: 0, zoom: 1 }, cells: [{}, {}, {}, {}] };
-  syncInputs();
-  render();
-}
+const canvas = $('preview');
 
 function syncInputs() {
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  set("in-title", state.title);
-  set("in-subtitle", state.subtitle);
-  set("in-tagline", state.tagline);
-  set("in-quote", state.quote);
-  set("in-stars", String(state.stars));
-  set("in-quotedby", state.quotedBy);
-  set("in-place", state.place);
-  set("in-time", state.time);
-  $$(".label-input").forEach((el) => {
-    const i = Number(el.dataset.i);
-    el.value = state.labels[i] || "";
+  $('in-title').value = state.title;
+  $('in-subtitle').value = state.subtitle;
+  $('in-tagline').value = state.tagline;
+  $('in-quote').value = state.quote;
+  $('in-stars').value = String(state.stars);
+  $('in-quoted-by').value = state.quotedBy;
+  $('in-place').value = state.place;
+  $('in-time').value = state.time;
+  state.cells.forEach((cell, i) => {
+    const el = $(`in-label-${i}`);
+    if (el) el.value = cell.label;
   });
-  $$(".preset-btn").forEach((b) => b.classList.toggle("active", b.dataset.preset === state.preset));
-  $$(".layout-btn").forEach((b) => b.classList.toggle("active", b.dataset.layout === state.layout));
-  $$(".grade-btn").forEach((b) => b.classList.toggle("active", b.dataset.grade === state.grade));
+  document.querySelectorAll('[data-preset]').forEach((b) => b.classList.toggle('active', b.dataset.preset === state.preset));
+  document.querySelectorAll('[data-layout]').forEach((b) => b.classList.toggle('active', b.dataset.layout === state.layout));
+  document.querySelectorAll('[data-grade]').forEach((b) => b.classList.toggle('active', b.dataset.grade === state.grade));
 }
-
-const canvas = $("#cover");
-const ctx = canvas.getContext("2d");
-let ready = false;
 
 function render() {
-  drawCover(ctx, 1080, 1080, state);
-  if (!ready) {
-    ready = true;
-    window.__coverReady = true;
-  }
+  regions = drawCover(canvas, state);
+  if (!window.__coverReady) window.__coverReady = true;
 }
 
-function buildButtons() {
-  const layoutBox = $("#layout-btns");
-  LAYOUTS.forEach((l) => {
-    const b = document.createElement("button");
-    b.className = "layout-btn";
-    b.dataset.layout = l.id;
-    b.textContent = l.label;
-    b.addEventListener("click", () => { state.layout = l.id; syncInputs(); render(); });
-    layoutBox.appendChild(b);
-  });
-  const gradeBox = $("#grade-btns");
-  GRADE_ORDER.forEach((id) => {
-    const b = document.createElement("button");
-    b.className = "grade-btn";
-    b.dataset.grade = id;
-    b.textContent = GRADES[id].label;
-    b.addEventListener("click", () => { state.grade = id; syncInputs(); render(); });
-    gradeBox.appendChild(b);
-  });
-  const exportBox = $("#export-btns");
-  EXPORT_SIZES.forEach((s) => {
-    const b = document.createElement("button");
-    b.className = "export-btn";
-    b.textContent = `PNG ${s.label}`;
-    b.addEventListener("click", () => exportPNG(s));
-    exportBox.appendChild(b);
+function bindCopy(id, key) {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    state[key] = el.value;
+    render();
   });
 }
 
-function bindInputs() {
-  const bind = (id, key) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener("input", () => {
-      state[key] = key === "stars" ? Number(el.value) : el.value;
+function bindStars() {
+  const el = $('in-stars');
+  el.addEventListener('change', () => {
+    state.stars = parseFloat(el.value) || 5;
+    render();
+  });
+}
+
+function bindButtons() {
+  document.querySelectorAll('[data-preset]').forEach((b) => {
+    b.addEventListener('click', () => {
+      state = applyPreset(state, b.dataset.preset);
+      syncInputs();
       render();
     });
+  });
+  document.querySelectorAll('[data-layout]').forEach((b) => {
+    b.addEventListener('click', () => {
+      state.layout = b.dataset.layout;
+      syncInputs();
+      render();
+    });
+  });
+  document.querySelectorAll('[data-grade]').forEach((b) => {
+    b.addEventListener('click', () => {
+      state.grade = b.dataset.grade;
+      syncInputs();
+      render();
+    });
+  });
+  state.cells.forEach((cell, i) => {
+    const el = $(`in-label-${i}`);
+    if (el) {
+      el.addEventListener('input', () => {
+        cell.label = el.value.toUpperCase();
+        render();
+      });
+    }
+  });
+}
+
+function canvasPos(evt) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: ((evt.clientX - rect.left) / rect.width) * canvas.width,
+    y: ((evt.clientY - rect.top) / rect.height) * canvas.height,
   };
-  bind("in-title", "title");
-  bind("in-subtitle", "subtitle");
-  bind("in-tagline", "tagline");
-  bind("in-quote", "quote");
-  bind("in-stars", "stars");
-  bind("in-quotedby", "quotedBy");
-  bind("in-place", "place");
-  bind("in-time", "time");
-  $$(".preset-btn").forEach((b) => b.addEventListener("click", () => applyPreset(b.dataset.preset)));
-  $$(".label-input").forEach((el) => {
-    el.addEventListener("input", () => {
-      state.labels[Number(el.dataset.i)] = el.value.toUpperCase();
-      render();
-    });
-  });
-  const up = $("#upload");
-  if (up) {
-    up.addEventListener("change", () => {
-      const file = up.files && up.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const img = await loadImage(reader.result);
-          state.photos[state.mainPhoto] = img;
-          FACE[state.mainPhoto] = { x: 0.5, y: 0.3 };
-          render();
-        } catch (e) {
-          console.error("upload failed", e);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  }
 }
 
-// Drag to pan the crop, wheel to zoom. Top half pans the hero; the bottom
-// cells row pans the cell under the pointer (Cast Grid / Hero Four only).
+function hitSlot(p) {
+  if (regions.main && p.x >= regions.main.x && p.x <= regions.main.x + regions.main.w && p.y >= regions.main.y && p.y <= regions.main.y + regions.main.h) {
+    return state.main;
+  }
+  for (const r of regions.cells || []) {
+    if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) {
+      return state.cells[r.index];
+    }
+  }
+  return null;
+}
+
 function bindCrop() {
-  let drag = null;
-  const toLogical = (e) => {
-    const r = canvas.getBoundingClientRect();
-    return {
-      x: ((e.clientX - r.left) / r.width) * 1080,
-      y: ((e.clientY - r.top) / r.height) * 1080,
-    };
-  };
-  const hitCell = (x, y) => {
-    if (state.layout !== "cast" && state.layout !== "hero") return -1;
-    if (y < 800 || y > 970) return -1;
-    const cw = (1008 - 36) / 4;
-    const i = Math.floor((x - 36) / (cw + 12));
-    return i >= 0 && i < 4 ? i : -1;
-  };
-  canvas.addEventListener("pointerdown", (e) => {
-    const p = toLogical(e);
-    const cell = hitCell(p.x, p.y);
-    const img = cell >= 0
-      ? state.photos[cellPhotos()[cell]]
-      : state.photos[state.mainPhoto];
-    drag = { cell, img, lx: p.x, ly: p.y };
-    canvas.setPointerCapture(e.pointerId);
+  canvas.addEventListener('pointerdown', (evt) => {
+    const p = canvasPos(evt);
+    const slot = hitSlot(p);
+    if (!slot) return;
+    drag = { slot, lastX: p.x, lastY: p.y };
+    canvas.setPointerCapture(evt.pointerId);
   });
-  canvas.addEventListener("pointermove", (e) => {
-    if (!drag || !drag.img) return;
-    const p = toLogical(e);
-    const k = drag.img.naturalWidth / 1008;
-    const target = drag.cell >= 0
-      ? (state.crops.cells[drag.cell] = state.crops.cells[drag.cell] || {})
-      : state.crops.main;
-    const zoom = target.zoom || 1;
-    target.dx = (target.dx || 0) - (p.x - drag.lx) * k / zoom;
-    target.dy = (target.dy || 0) - (p.y - drag.ly) * k / zoom;
-    drag.lx = p.x;
-    drag.ly = p.y;
+  canvas.addEventListener('pointermove', (evt) => {
+    if (!drag) return;
+    const p = canvasPos(evt);
+    const dx = (p.x - drag.lastX) / canvas.width;
+    const dy = (p.y - drag.lastY) / canvas.height;
+    drag.slot.cx = Math.max(0, Math.min(1, drag.slot.cx - dx * 1.4));
+    drag.slot.cy = Math.max(0, Math.min(1, drag.slot.cy - dy * 1.4));
+    drag.lastX = p.x;
+    drag.lastY = p.y;
     render();
   });
-  canvas.addEventListener("pointerup", () => { drag = null; });
-  canvas.addEventListener("wheel", (e) => {
-    e.preventDefault();
-    const p = toLogical(e);
-    const cell = hitCell(p.x, p.y);
-    const target = cell >= 0
-      ? (state.crops.cells[cell] = state.crops.cells[cell] || {})
-      : state.crops.main;
-    const z = target.zoom || 1;
-    target.zoom = Math.min(2.5, Math.max(1, z * (e.deltaY < 0 ? 1.1 : 0.9)));
-    render();
-  }, { passive: false });
+  canvas.addEventListener('pointerup', () => {
+    drag = null;
+  });
+  canvas.addEventListener(
+    'wheel',
+    (evt) => {
+      evt.preventDefault();
+      const p = canvasPos(evt);
+      const slot = hitSlot(p);
+      if (!slot) return;
+      const factor = evt.deltaY < 0 ? 1.08 : 1 / 1.08;
+      slot.zoom = Math.max(1, Math.min(3, slot.zoom * factor));
+      render();
+    },
+    { passive: false },
+  );
 }
 
-function cellPhotos() {
-  const main = state.mainPhoto;
-  const other = main === "pier" ? "boulevard" : "pier";
-  return [other, main, other, main];
-}
-
-function exportPNG(size) {
-  const out = renderToCanvas(state, size.w, size.h);
-  out.toBlob((blob) => {
+function download(canvasEl, name) {
+  canvasEl.toBlob((blob) => {
     if (!blob) return;
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `neon-tide-${size.id}-${size.w}x${size.h}.png`;
+    a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  }, "image/png");
+  }, 'image/png');
+}
+
+function bindExport() {
+  document.querySelectorAll('[data-export]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const [w, h] = b.dataset.export.split('x').map(Number);
+      const out = renderToSize(state, w, h);
+      download(out, `neon-tide-${state.preset}-${w}x${h}.png`);
+    });
+  });
+}
+
+function applyShot() {
+  const shot = params.get('shot');
+  if (!shot) return;
+  document.body.classList.add('cover-only');
+  if (shot === 'cover') {
+    state = makeState('tide');
+    state.layout = 'cast';
+  } else if (shot === 'cover2') {
+    state = makeState('mile');
+    state.layout = 'cast';
+  } else if (shot === 'editor') {
+    document.body.classList.remove('cover-only');
+    state = makeState('mile');
+    state.layout = 'cast';
+  } else if (LAYOUTS.includes(shot)) {
+    state = makeState('tide');
+    state.layout = shot;
+  }
+  const grade = params.get('grade');
+  if (grade && GRADES[grade]) state.grade = grade;
+  const preset = params.get('preset');
+  if (preset && PRESETS[preset]) state = applyPreset(state, preset);
 }
 
 async function init() {
-  buildButtons();
-  bindInputs();
+  applyShot();
+  bindCopy('in-title', 'title');
+  bindCopy('in-subtitle', 'subtitle');
+  bindCopy('in-tagline', 'tagline');
+  bindCopy('in-quote', 'quote');
+  bindCopy('in-quoted-by', 'quotedBy');
+  bindCopy('in-place', 'place');
+  bindCopy('in-time', 'time');
+  bindStars();
+  bindButtons();
   bindCrop();
-  const params = new URLSearchParams(location.search);
-  const shot = params.get("shot");
-  const photo = params.get("photo");
-  if (photo === "boulevard") applyPreset("mile");
-  else applyPreset("tide");
-  if (shot === "cover") {
-    document.body.classList.add("cover-only");
-    if (photo === "boulevard") applyPreset("mile");
-    else applyPreset("tide");
-  }
+  bindExport();
+  syncInputs();
+  await loadPhotos(['pier', 'boulevard']);
   try {
-    await Promise.all([
-      document.fonts.load('150px Anton'),
-      document.fonts.load('64px Pacifico'),
-      document.fonts.load('40px Anton'),
-      document.fonts.load('26px Anton'),
-    ]);
-  } catch (e) {
-    console.warn("font preload", e);
+    await Promise.all([document.fonts.load('700 140px Anton'), document.fonts.load('60px Pacifico'), document.fonts.ready]);
+  } catch {
+    // fall back to system fonts if the bundled ones cannot load
   }
-  const [pier, boulevard] = await Promise.all([
-    loadImage("samples/pier.jpg"),
-    loadImage("samples/boulevard.jpg"),
-  ]);
-  state.photos = { pier, boulevard };
   render();
 }
 
