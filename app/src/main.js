@@ -1,286 +1,337 @@
-// Neon Tide editor: presets, layout and grade switches, copy fields,
-// per-cell crop (drag to move the face point, wheel to zoom), photo upload
-// and PNG export. Photos never leave the machine.
-import { GRADES, GRADE_IDS, gradeById } from './grades.js';
-import { COVER, PRESETS, makeState, applyPreset, renderCover, exportCanvas, visibleCells } from './cover.js';
+// Neon Tide Cover Studio — editor wiring.
+// Loads the six photos, holds the two presets, wires the layout / grade /
+// copy controls, per-cell drag + wheel cropping, photo upload, ?shot
+// scenes and the three PNG exports. All paths are absolute from the app
+// directory; the page itself is served offline from the repo.
 
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+(function () {
+  'use strict';
 
-const PHOTO_NAMES = ['Pier', 'Boulevard', 'Redhead', 'Curly', 'Elder', 'Young Man'];
-
-const params = new URLSearchParams(location.search);
-const shot = params.get('shot') || '';
-const state = makeState(params.get('preset') === 'midnight' ? 'midnight' : 'neon');
-if (params.get('layout')) state.layout = params.get('layout');
-if (params.get('grade')) state.grade = params.get('grade');
-
-const canvas = $('#cover');
-let selected = 0; // index into visibleCells(state)
-
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-function loadFonts() {
-  const loads = [
-    document.fonts.load('190px Anton'),
-    document.fonts.load('150px Anton'),
-    document.fonts.load('64px Pacifico'),
-    document.fonts.load('40px Anton'),
+  var PHOTOS = [
+    { src: 'samples/pier.jpg', label: 'THE CAPTAIN', fx: 0.42, fy: 0.22 },
+    { src: 'samples/boulevard.jpg', label: 'THE DRIVER', fx: 0.5, fy: 0.22 },
+    { src: 'samples/cast-redhead.jpg', label: 'THE FIXER', fx: 0.5, fy: 0.3 },
+    { src: 'samples/cast-curly.jpg', label: 'THE LOOKOUT', fx: 0.5, fy: 0.3 },
+    { src: 'samples/cast-elder.jpg', label: 'THE BOSS', fx: 0.5, fy: 0.3 },
+    { src: 'samples/cast-youngman.jpg', label: 'THE INSIDER', fx: 0.5, fy: 0.3 }
   ];
-  return Promise.all(loads).catch(() => undefined);
-}
 
-function draw() {
-  renderCover(canvas, state);
-}
+  // Grid order is row-major: [top-left, top-centre (hero), top-right,
+  // bottom-left, bottom-centre, bottom-right]. hero is the grid position
+  // of the hero cell (1 for both presets: the centre of the top row).
+  var PRESETS = {
+    'neon-tide': {
+      title: 'NEON TIDE',
+      subtitle: 'chasing the last light',
+      tagline: 'EVERY SUNSET HAS A PRICE',
+      quote: 'A SUNSET WITH TEETH.',
+      source: 'THE SHORELINE POST',
+      location: 'NEON SHORE · 7:15 PM',
+      order: [1, 0, 2, 3, 4, 5],
+      hero: 1
+    },
+    'midnight-mile': {
+      title: 'MIDNIGHT MILE',
+      subtitle: 'the city never blinks',
+      tagline: 'FOUR LANES · NO BRAKES',
+      quote: 'FASTER THAN THE RUMOUR.',
+      source: 'THE BOULEVARD GAZETTE',
+      location: 'BOULEVARD · 11:48 PM',
+      order: [0, 1, 3, 2, 5, 4],
+      hero: 1
+    }
+  };
 
-function syncInputs() {
-  $('#in-title').value = state.title;
-  $('#in-subtitle').value = state.subtitle;
-  $('#in-tagline').value = state.tagline;
-  $('#in-quote').value = state.quote;
-  $('#in-stars').value = String(state.stars);
-  $('#in-source').value = state.source;
-  $('#in-place').value = state.place;
-  $('#in-time').value = state.time;
-  $$('[data-layout]').forEach((b) => b.classList.toggle('active', b.dataset.layout === state.layout));
-  $$('[data-grade]').forEach((b) => b.classList.toggle('active', b.dataset.grade === state.grade));
-  $$('[data-preset]').forEach((b) => b.classList.toggle('active', b.dataset.preset === state.preset));
-  buildCellRows();
-}
+  var state = {
+    preset: 'neon-tide',
+    layout: 'mosaic',
+    grade: 'vice-pink',
+    title: '',
+    subtitle: '',
+    tagline: '',
+    quote: '',
+    source: '',
+    location: '',
+    cells: [],
+    heroIndex: 1,
+    selected: -1,
+    showSelection: false
+  };
 
-function buildCellRows() {
-  const list = $('#cell-list');
-  list.innerHTML = '';
-  const cells = visibleCells(state);
-  if (selected >= cells.length) selected = 0;
-  cells.forEach((cell, i) => {
-    const row = document.createElement('div');
-    row.className = 'cell-row' + (i === selected ? ' selected' : '');
-    const tag = document.createElement('span');
-    tag.className = 'cell-tag';
-    tag.textContent = i === 0 ? 'HERO' : 'CELL ' + i;
-    const label = document.createElement('input');
-    label.type = 'text';
-    label.value = cell.label;
-    label.setAttribute('aria-label', 'Role label');
-    label.addEventListener('input', () => {
-      cell.label = label.value.toUpperCase();
-      draw();
-    });
-    const photo = document.createElement('select');
-    photo.setAttribute('aria-label', 'Photo');
-    PHOTO_NAMES.forEach((name, idx) => {
-      const opt = document.createElement('option');
-      opt.value = String(idx);
-      opt.textContent = name;
-      if (cell.photo === idx) opt.selected = true;
-      photo.appendChild(opt);
-    });
-    photo.addEventListener('change', () => {
-      cell.photo = Number(photo.value);
-      draw();
-    });
-    row.appendChild(tag);
-    row.appendChild(label);
-    row.appendChild(photo);
-    row.addEventListener('click', () => {
-      selected = i;
-      buildCellRows();
-    });
-    list.appendChild(row);
-  });
-}
+  var images = {};
+  var canvas;
+  var ctx;
+  var ready = false;
 
-function bindCopy() {
-  const map = [
-    ['#in-title', 'title'],
-    ['#in-subtitle', 'subtitle'],
-    ['#in-tagline', 'tagline'],
-    ['#in-quote', 'quote'],
-    ['#in-source', 'source'],
-    ['#in-place', 'place'],
-    ['#in-time', 'time'],
-  ];
-  for (const [sel, key] of map) {
-    $(sel).addEventListener('input', (e) => {
-      state[key] = e.target.value;
-      draw();
+  function loadImage(src) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { resolve(null); };
+      img.src = src;
     });
   }
-  $('#in-stars').addEventListener('change', (e) => {
-    state.stars = Number(e.target.value);
-    draw();
-  });
-  $$('[data-layout]').forEach((b) =>
-    b.addEventListener('click', () => {
-      state.layout = b.dataset.layout;
-      selected = 0;
-      syncInputs();
-      draw();
-    }),
-  );
-  $$('[data-grade]').forEach((b) =>
-    b.addEventListener('click', () => {
-      state.grade = b.dataset.grade;
-      syncInputs();
-      draw();
-    }),
-  );
-  $$('[data-preset]').forEach((b) =>
-    b.addEventListener('click', () => {
-      applyPreset(state, b.dataset.preset);
-      selected = 0;
-      syncInputs();
-      draw();
-    }),
-  );
-  $$('[data-export]').forEach((b) =>
-    b.addEventListener('click', () => {
-      const [w, h] = b.dataset.export.split('x').map(Number);
-      const out = exportCanvas(state, w, h);
-      out.toBlob((blob) => {
-        if (!blob) return;
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'neon-tide-' + w + 'x' + h + '.png';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      }, 'image/png');
-    }),
-  );
-  $('#upload').addEventListener('change', (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        state.photos.push(img);
-        const cells = visibleCells(state);
-        cells[selected].photo = state.photos.length - 1;
-        buildCellRows();
-        draw();
+
+  function buildCells() {
+    var preset = PRESETS[state.preset];
+    var order = preset.order.slice();
+    if (state.layout === 'hero-four') {
+      // Hero first so the big hero rect shows the hero photo.
+      var heroPhoto = order.splice(preset.hero, 1)[0];
+      order.unshift(heroPhoto);
+    }
+    state.cells = order.map(function (pi) {
+      var p = PHOTOS[pi];
+      return {
+        photo: images[p.src],
+        label: p.label,
+        fx: p.fx,
+        fy: p.fy,
+        scale: 1,
+        dx: 0,
+        dy: 0,
+        visible: true
       };
-      img.src = String(reader.result);
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-// Hit-test the cover in 1080 space: the mosaic and row rects for the
-// layouts that show them; returns the cell object or null.
-function hitCell(px, py) {
-  const L = state.layout;
-  const inRect = (r) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
-  if (L === 'cast') {
-    const bw = (1008 - 16) / 3;
-    const rects = [
-      { cell: state.cells[0], rect: { x: 36, y: 110, w: 246, h: 360 } },
-      { cell: state.hero, rect: { x: 290, y: 110, w: 500, h: 360 } },
-      { cell: state.cells[1], rect: { x: 798, y: 110, w: 246, h: 360 } },
-      { cell: state.cells[2], rect: { x: 36, y: 478, w: bw, h: 320 } },
-      { cell: state.cells[3], rect: { x: 36 + bw + 8, y: 478, w: bw, h: 320 } },
-      { cell: state.cells[4], rect: { x: 36 + (bw + 8) * 2, y: 478, w: bw, h: 320 } },
-    ];
-    for (const hit of rects) {
-      if (inRect(hit.rect)) return hit;
-    }
-  } else if (L === 'hero') {
-    if (inRect({ x: 36, y: 110, w: 1008, h: 360 })) return { cell: state.hero, rect: { x: 36, y: 110, w: 1008, h: 360 } };
-    const w = (1008 - 24) / 4;
-    for (let i = 0; i < 4; i++) {
-      const r = { x: 36 + i * (w + 8), y: 480, w, h: 120 };
-      if (inRect(r)) return { cell: state.cells[i], rect: r };
-    }
-  } else if (L === 'full') {
-    if (inRect({ x: 36, y: 110, w: 1008, h: 900 })) return { cell: state.hero, rect: { x: 36, y: 110, w: 1008, h: 900 } };
-  } else if (L === 'nine') {
-    const cw = (1008 - 16) / 3;
-    const ys = [110, 342, 574];
-    for (let i = 0; i < 9; i++) {
-      const r = { x: 36 + (i % 3) * (cw + 8), y: ys[Math.floor(i / 3)], w: cw, h: 224 };
-      if (inRect(r)) return { cell: state.nine[i], rect: r };
-    }
+    });
+    state.heroIndex = preset.hero;
+    if (state.layout === 'hero-four') state.heroIndex = 0;
+    state.selected = -1;
+    state.showSelection = false;
   }
-  return null;
-}
 
-function bindCanvas() {
-  let drag = null;
-  canvas.addEventListener('pointerdown', (e) => {
-    const r = canvas.getBoundingClientRect();
-    const px = ((e.clientX - r.left) / r.width) * COVER;
-    const py = ((e.clientY - r.top) / r.height) * COVER;
-    const hit = hitCell(px, py);
-    if (!hit) return;
-    drag = { cell: hit.cell, rect: hit.rect, lastX: px, lastY: py };
-    const cells = visibleCells(state);
-    selected = cells.indexOf(hit.cell);
-    buildCellRows();
-    canvas.setPointerCapture(e.pointerId);
-  });
-  canvas.addEventListener('pointermove', (e) => {
-    if (!drag) return;
-    const r = canvas.getBoundingClientRect();
-    const px = ((e.clientX - r.left) / r.width) * COVER;
-    const py = ((e.clientY - r.top) / r.height) * COVER;
-    const img = state.photos[drag.cell.photo];
-    if (img) {
-      drag.cell.fx = Math.min(0.95, Math.max(0.05, drag.cell.fx + ((px - drag.lastX) / drag.rect.w) * (drag.rect.w / (img.naturalWidth * Math.max(drag.rect.w / img.naturalWidth, drag.rect.h / img.naturalHeight) * drag.cell.zoom))));
-      drag.cell.fy = Math.min(0.95, Math.max(0.05, drag.cell.fy + ((py - drag.lastY) / drag.rect.h) * (drag.rect.h / (img.naturalHeight * Math.max(drag.rect.w / img.naturalWidth, drag.rect.h / img.naturalHeight) * drag.cell.zoom))));
+  function applyPreset(name) {
+    state.preset = name;
+    var p = PRESETS[name];
+    state.title = p.title;
+    state.subtitle = p.subtitle;
+    state.tagline = p.tagline;
+    state.quote = p.quote;
+    state.source = p.source;
+    state.location = p.location;
+    buildCells();
+    syncInputs();
+    render();
+  }
+
+  function syncInputs() {
+    var set = function (id, v) {
+      var el = document.getElementById(id);
+      if (el) el.value = v;
+    };
+    set('copyTitle', state.title);
+    set('copySubtitle', state.subtitle);
+    set('copyTagline', state.tagline);
+    set('copyQuote', state.quote);
+    document.querySelectorAll('[data-preset]').forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-preset') === state.preset);
+    });
+    document.querySelectorAll('[data-layout]').forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-layout') === state.layout);
+    });
+    document.querySelectorAll('[data-grade]').forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-grade') === state.grade);
+    });
+  }
+
+  function render() {
+    if (!canvas || !ready) return;
+    CoverStudio.renderCover(ctx, state);
+    window.__coverReady = true;
+  }
+
+  function cellRects() {
+    return CoverStudio.layoutGeometry(state.layout).rects;
+  }
+
+  function canvasPoint(evt) {
+    var r = canvas.getBoundingClientRect();
+    return {
+      x: (evt.clientX - r.left) * (canvas.width / r.width),
+      y: (evt.clientY - r.top) * (canvas.height / r.height)
+    };
+  }
+
+  function hitCell(pt) {
+    var rects = cellRects();
+    var visible = state.cells.filter(function (c) { return c.visible !== false; });
+    for (var i = rects.length - 1; i >= 0; i--) {
+      var rc = rects[i];
+      if (i >= visible.length) continue;
+      if (pt.x >= rc.x && pt.x <= rc.x + rc.w && pt.y >= rc.y && pt.y <= rc.y + rc.h) return i;
     }
-    drag.lastX = px;
-    drag.lastY = py;
-    draw();
-  });
-  canvas.addEventListener('pointerup', () => {
-    drag = null;
-  });
-  canvas.addEventListener('wheel', (e) => {
-    const r = canvas.getBoundingClientRect();
-    const px = ((e.clientX - r.left) / r.width) * COVER;
-    const py = ((e.clientY - r.top) / r.height) * COVER;
-    const hit = hitCell(px, py);
-    if (!hit) return;
-    e.preventDefault();
-    hit.cell.zoom = Math.min(2.5, Math.max(0.8, hit.cell.zoom * (e.deltaY < 0 ? 1.08 : 0.92)));
-    draw();
-  }, { passive: false });
-}
+    return -1;
+  }
 
-async function boot() {
-  const coverOnly = shot === 'cover' || shot === 'cover2';
-  if (shot === 'cover2') applyPreset(state, 'midnight');
-  if (shot === 'editor') applyPreset(state, 'midnight');
-  document.body.classList.toggle('cover-only', coverOnly);
-  const [pier, boulevard, redhead, curly, elder, youngman] = await Promise.all([
-    loadImage('samples/pier.jpg'),
-    loadImage('samples/boulevard.jpg'),
-    loadImage('samples/cast-redhead.jpg'),
-    loadImage('samples/cast-curly.jpg'),
-    loadImage('samples/cast-elder.jpg'),
-    loadImage('samples/cast-youngman.jpg'),
-  ]);
-  state.photos = [pier, boulevard, redhead, curly, elder, youngman];
-  await loadFonts();
-  bindCopy();
-  bindCanvas();
-  syncInputs();
-  draw();
-  window.__coverReady = true;
-}
+  function bindCanvas() {
+    var dragging = false;
+    var last = null;
+    canvas.addEventListener('pointerdown', function (evt) {
+      var pt = canvasPoint(evt);
+      var idx = hitCell(pt);
+      if (idx >= 0) {
+        state.selected = idx;
+        state.showSelection = true;
+        dragging = true;
+        last = pt;
+        canvas.setPointerCapture(evt.pointerId);
+        render();
+      }
+    });
+    canvas.addEventListener('pointermove', function (evt) {
+      if (!dragging || state.selected < 0) return;
+      var pt = canvasPoint(evt);
+      var cell = state.cells[state.selected];
+      if (!cell) return;
+      var rects = cellRects();
+      var scale = canvas.width / canvas.getBoundingClientRect().width;
+      cell.dx += (pt.x - last.x);
+      cell.dy += (pt.y - last.y);
+      last = pt;
+      render();
+    });
+    canvas.addEventListener('pointerup', function () {
+      dragging = false;
+    });
+    canvas.addEventListener('wheel', function (evt) {
+      evt.preventDefault();
+      var pt = canvasPoint(evt);
+      var idx = hitCell(pt);
+      if (idx < 0) return;
+      state.selected = idx;
+      state.showSelection = true;
+      var cell = state.cells[idx];
+      var factor = evt.deltaY < 0 ? 1.08 : 1 / 1.08;
+      cell.scale = Math.min(3, Math.max(1, (cell.scale || 1) * factor));
+      render();
+    }, { passive: false });
+  }
 
-boot().catch((err) => {
-  console.error(err);
-  const note = document.createElement('p');
-  note.textContent = 'Could not start the cover studio: ' + err.message;
-  document.body.appendChild(note);
-});
+  function exportPNG(w, h) {
+    var off = document.createElement('canvas');
+    off.width = w;
+    off.height = h;
+    CoverStudio.renderCoverToSize(off, state);
+    var slug = state.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    off.toBlob(function (blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = slug + '-' + w + 'x' + h + '.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+    }, 'image/png');
+  }
+
+  function bindControls() {
+    document.querySelectorAll('[data-preset]').forEach(function (b) {
+      b.addEventListener('click', function () { applyPreset(b.getAttribute('data-preset')); });
+    });
+    document.querySelectorAll('[data-layout]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.layout = b.getAttribute('data-layout');
+        buildCells();
+        syncInputs();
+        render();
+      });
+    });
+    document.querySelectorAll('[data-grade]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.grade = b.getAttribute('data-grade');
+        syncInputs();
+        render();
+      });
+    });
+    var bindText = function (id, key) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', function () {
+        state[key] = el.value;
+        render();
+      });
+    };
+    bindText('copyTitle', 'title');
+    bindText('copySubtitle', 'subtitle');
+    bindText('copyTagline', 'tagline');
+    bindText('copyQuote', 'quote');
+    var up = document.getElementById('uploadInput');
+    if (up) {
+      up.addEventListener('change', function () {
+        var file = up.files && up.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          var img = new Image();
+          img.onload = function () {
+            var idx = state.selected >= 0 ? state.selected : 0;
+            var cell = state.cells[idx];
+            if (cell) {
+              cell.photo = img;
+              cell.fx = 0.5;
+              cell.fy = 0.3;
+              cell.scale = 1;
+              cell.dx = 0;
+              cell.dy = 0;
+              render();
+            }
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    var ex = function (id, w, h) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('click', function () { exportPNG(w, h); });
+    };
+    ex('export1080', 1080, 1080);
+    ex('export1350', 1080, 1350);
+    ex('export1920', 1920, 1080);
+  }
+
+  function applyShot() {
+    var q = new URLSearchParams(window.location.search);
+    var shot = q.get('shot');
+    if (shot === 'cover2') {
+      applyPreset('midnight-mile');
+    } else if (shot === 'cover') {
+      applyPreset('neon-tide');
+    }
+    var layout = q.get('layout');
+    if (layout && CoverStudio.LAYOUTS.indexOf(layout) >= 0) {
+      state.layout = layout;
+      buildCells();
+    }
+    var grade = q.get('grade');
+    if (grade && GRADES[grade]) {
+      state.grade = grade;
+    }
+    if (shot === 'cover' || shot === 'cover2') {
+      document.body.classList.add('cover-only');
+      state.showSelection = false;
+    }
+    syncInputs();
+  }
+
+  async function init() {
+    canvas = document.getElementById('coverCanvas');
+    ctx = canvas.getContext('2d');
+    var loads = PHOTOS.map(function (p) {
+      return loadImage(p.src).then(function (img) { images[p.src] = img; });
+    });
+    await Promise.all(loads);
+    try { await document.fonts.ready; } catch (e) { /* fonts may already be ready */ }
+    applyPreset('neon-tide');
+    applyShot();
+    bindControls();
+    bindCanvas();
+    ready = true;
+    render();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
