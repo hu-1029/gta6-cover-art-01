@@ -1,10 +1,11 @@
-Copyright 2020 The Anton Project Authors (https://github.com/googlefonts/AntonFont)
-Copyright 2018 The Pacifico Project Authors (https://github.com/googlefonts/Pacifico)
+Copyright 2020 The Anton Project Authors (https://github.com/googlefonts/AntonFont),
+with Reserved Font Name "Anton".
+Copyright 2018 The Pacifico Project Authors (https://github.com/googlefonts/Pacifico),
+with Reserved Font Name "Pacifico".
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
-http://scripts.sil.org/OFL
-
+https://openfontlicense.org
 
 -----------------------------------------------------------
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
@@ -23,8 +24,8 @@ fonts, including any derivative works, can be bundled, embedded,
 redistributed and/or sold with any software provided that any reserved
 names are not used by derivative works. The fonts and derivatives,
 however, cannot be released under any other type of license. The
-requirement for fonts to remain under this license does not apply
-to any document created using the fonts or their derivatives.
+requirement for fonts to remain under this license does not apply to any
+document created using the fonts or their derivatives.
 
 DEFINITIONS
 "Font Software" refers to the set of files released by the Copyright
@@ -42,8 +43,8 @@ or substituting -- in part or in whole -- any of the components of the
 Original Version, by changing formats or by porting the Font Software to a
 new environment.
 
-"Author" refers to any designer, engineer, programmer, technical
-writer or other person who contributed to the Font Software.
+"Author" refers to any designer, engineer, programmer, technical writer or
+other person who contributed to the Font Software.
 
 PERMISSION & CONDITIONS
 Permission is hereby granted, free of charge, to any person obtaining
@@ -62,9 +63,9 @@ in the appropriate machine-readable metadata fields within text or
 binary files as long as those fields can be easily viewed by the user.
 
 3) No Modified Version of the Font Software may use the Reserved Font
-Name(s) unless explicit written permission is granted by the corresponding
-Copyright Holder. This restriction only applies to the primary font name as
-presented to the users.
+Name(s) unless explicit written permission is granted by the
+corresponding Copyright Holder. This restriction only applies to the
+primary font name as presented to the user.
 
 4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
 Software shall not be used to promote, endorse or advertise any
@@ -90,5 +91,5 @@ COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
 COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
-OTHER DEALINGS IN THE FONT SOFTWARE.
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER
+DEALINGS IN THE FONT SOFTWARE.
