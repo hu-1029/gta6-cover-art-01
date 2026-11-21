@@ -1,7 +1,8 @@
 // A tiny static server for app/ (Node 22, standard library only), so the
-// entry can be tried locally without a build step: `node serve.ts` serves
-// app/ on http://localhost:8080. Plain JavaScript style: no type
-// annotations, so `node --check` passes on this file too.
+// Neon Tide cover studio can be tried locally without a build step:
+// `node serve.ts` serves app/ on http://localhost:8080. It sends the MIME
+// types an offline web app needs, refuses any path outside app/, and
+// otherwise does nothing clever. Pure JavaScript, no type annotations.
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
@@ -10,58 +11,49 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(fileURLToPath(new URL('./app', import.meta.url)));
 const args = process.argv.slice(2);
 const portIndex = args.indexOf('--port');
-const requested = portIndex === -1 ? 8080 : Number(args[portIndex + 1]);
-const port = Number.isInteger(requested) && requested > 0 && requested < 65536 ? requested : 8080;
+const port = portIndex >= 0 ? Number(args[portIndex + 1]) || 8080 : Number(process.env.PORT || 8080);
 
-const MIME = {
+const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
-  '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
+  '.png': 'image/png',
   '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2',
-  '.woff': 'font/woff',
   '.ttf': 'font/ttf',
-  '.otf': 'font/otf',
-  '.txt': 'text/plain; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8'
 };
 
-createServer((request, response) => {
-  const url = new URL(request.url ?? '/', 'http://localhost');
-  let pathname;
+const server = createServer(function (req, res) {
+  var urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  if (urlPath === '/') urlPath = '/index.html';
+  var filePath = resolve(join(root, normalize(urlPath)));
+  if (filePath !== root && !filePath.startsWith(root + sep)) {
+    res.writeHead(403);
+    res.end('forbidden');
+    return;
+  }
+  var st;
   try {
-    pathname = decodeURIComponent(url.pathname);
-  } catch {
-    response.writeHead(400).end('bad request');
+    st = statSync(filePath);
+  } catch (e) {
+    res.writeHead(404);
+    res.end('not found');
     return;
   }
-  if (pathname.endsWith('/')) pathname += 'index.html';
-  const file = resolve(join(root, normalize(pathname)));
-  if (!file.startsWith(root + sep) && file !== root) {
-    response.writeHead(403).end('forbidden');
+  if (!st.isFile()) {
+    res.writeHead(404);
+    res.end('not found');
     return;
   }
-  let stat;
-  try {
-    stat = statSync(file);
-  } catch {
-    response.writeHead(404).end('not found');
-    return;
-  }
-  if (!stat.isFile()) {
-    response.writeHead(404).end('not found');
-    return;
-  }
-  const type = MIME[extname(file).toLowerCase()] || 'application/octet-stream';
-  response.writeHead(200, { 'content-type': type, 'content-length': stat.size });
-  createReadStream(file).pipe(response);
-}).listen(port, () => {
-  console.log('Neon Tide serves app/ on http://localhost:' + port);
+  var type = TYPES[extname(filePath).toLowerCase()] || 'application/octet-stream';
+  res.writeHead(200, { 'content-type': type });
+  createReadStream(filePath).pipe(res);
+});
+
+server.listen(port, function () {
+  console.log('Neon Tide Cover Studio on http://localhost:' + port + '/');
 });

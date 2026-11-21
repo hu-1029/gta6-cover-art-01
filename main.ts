@@ -1,36 +1,19 @@
-// Neon Tide hands itself in: copies app/ and screenshots/ beside this file
-// to /output and writes /output/dossier.json with the vendored make.fun
-// library. Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-// The app ships six sample photos (two kit samples plus four cast
-// portraits) and four colour grades; the dossier caps below are the
-// scorer's own, so a local run refuses exactly what the scorer refuses.
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-app.ts';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const here = fileURLToPath(new URL('.', import.meta.url));
-const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-
+// buildDossier's first argument is the repository directory: it reads
+// app/ and screenshots/ from beside this file and returns the dossier.
+const repoDir = dirname(fileURLToPath(import.meta.url));
+const out = process.env.MAKEFUN_OUTPUT_DIR || 'out';
 mkdirSync(out, { recursive: true });
-cpSync(join(here, 'app'), join(out, 'app'), { recursive: true });
-mkdirSync(join(out, 'screenshots'), { recursive: true });
-if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true });
-
-// The scorer's own caps (reference/gate.json): only text_max_bytes shapes
-// the bytes; the others refuse an entry the scorer would refuse (more than
-// 4 screenshots or one over 256 KiB; more than 993 files in app/ or 48 MiB
-// of app files, in all, or a path under app/ over 1000 bytes). The six
-// sample photos are the bulkiest part of app/ and stay well under the cap.
-// buildDossier returns the raw dossier bytes: write them straight to disk.
-writeFileSync(
-  join(out, 'dossier.json'),
-  buildDossier(out, {
-    text_max_bytes: 163840,
-    screenshots: { max: 4, max_bytes: 262144 },
-    app_max_files: 993,
-    app_max_bytes: 50331648,
-    app_path_max_bytes: 1000,
-  }),
-);
+const dossierBytes = buildDossier(repoDir, {
+  text_max_bytes: 163840,
+  screenshots: { max: 4, max_bytes: 262144 },
+  app_max_files: 993,
+  app_max_bytes: 50331648,
+  app_path_max_bytes: 1000
+});
+writeFileSync(join(out, 'dossier.json'), dossierBytes);
+console.log('dossier written: ' + join(out, 'dossier.json') + ' (' + dossierBytes.length + ' bytes)');

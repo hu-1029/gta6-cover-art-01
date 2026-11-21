@@ -4,55 +4,49 @@
 [![rank](https://make.fun/badge/gta6-cover-art-01/hu-1029/gta6-cover-art-01/rank.svg)](https://make.fun/bounty/gta6-cover-art-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
 [![reward](https://make.fun/badge/gta6-cover-art-01/hu-1029/gta6-cover-art-01/reward.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
 
-Turn any photo and caption into a GTA 6 poster-style cover, right in the
-browser. No uploads, no account, no network: the photos never leave the
-device and the app loads zero external resources.
+Turn a photo and a caption into a GTA 6 style cover poster, fully offline.
+Pick a preset, choose one of five layouts and four colour grades, drag each
+photo to reframe it, scroll to zoom, then export a PNG.
 
-## Try it
+## What it does
+
+- **Two presets** — Neon Tide and Midnight Mile, each with its own title,
+  subtitle, tagline, quote, source line, location strip and six-photo cast.
+- **Five layouts** — Mosaic (a 2×3 cast grid with the big title pressed
+  over the hero photo), Hero Four, Full Frame, Nine Grid and Polaroids.
+- **Four colour grades** — Vice Pink (default), Sunset, Neon Night and
+  Golden Hour. Every grade re-skins the background, the chrome title
+  gradient and the gold accents.
+- **Face-safe cropping** — every cell defaults to a focal point 30% down
+  from the top of the photo, so faces stay in frame. Drag to move, scroll
+  to zoom, or upload your own photo to replace a cell.
+- **Three exports** — 1080×1080, 1080×1350 and 1920×1080 PNG, rendered
+  from the same canvas the editor shows.
+
+## Run it
 
 ```sh
 node serve.ts
-# open http://localhost:8080
 ```
 
-Pick a preset (Neon Tide or Midnight Mile), or load your own photo, drag it
-to place the face, scroll to zoom, edit every line of copy, then export a
-PNG in 1080 &times; 1080, 1080 &times; 1350 or 1920 &times; 1080.
+Then open http://localhost:8080/ in a browser. Everything runs on your
+own machine: the photos, fonts and app files never leave it, and the app
+makes zero network requests.
 
-## What it makes
+Screenshot scenes (used for the dossier screenshots):
 
-A multi-panel poster in the style of the GTA 6 key art: a six-photo mosaic
-with a big hero, a quote bar with stars and a press source, a huge striped
-chrome title pressed over the hero photo with a handwritten subtitle, a
-tagline, a billing block (A NEON SHORE PICTURE, STARRING …) and a COMING
-SOON footer with a barcode and an EST. 2026 ORIGINAL starburst.
+- `http://localhost:8080/?shot=cover` — the Neon Tide cover, full-bleed
+- `http://localhost:8080/?shot=cover2` — the Midnight Mile cover, full-bleed
 
-- **5 layouts**: Mosaic (hero + 5 cast panels, six different photos),
-  Hero Four, Full Frame, Nine Grid and Polaroids.
-- **4 colour grades**: Vice Pink (the default hot magenta sunset), Sunset,
-  Neon Night and Golden Hour.
-- **Face-safe crops**: each panel keeps its face centred (the focus sits
-  30% down the panel by default); drag any photo to reposition it, scroll
-  to zoom, and edit every role label.
-- **Six built-in photos**: the two kit samples plus four cast portraits, so
-  the mosaic never repeats a face.
-- **Two built-in presets** with their own copy: NEON TIDE (pier fisherman,
-  "chasing the last light") and MIDNIGHT MILE (boulevard driver,
-  "the city never blinks").
+## Photos
 
-## Files
+`app/samples/` holds the two kit sample photos (boulevard, pier) and four
+AI-generated cast portraits (a red-haired woman, a curly-haired woman in
+sunglasses, an older man on a pier, a young man at a cafe). All six were
+made for this entry and are free to use.
 
-| File | What it does |
-|---|---|
-| `app/index.html` | The editor page: preview canvas, layout/grade/copy panels |
-| `app/style.css` | Dark neon editor styling, Anton + Pacifico `@font-face` |
-| `app/src/cover.js` | The cover renderer: layouts, crops, title, billing, export |
-| `app/src/grades.js` | The four colour grades |
-| `app/src/main.js` | Editor wiring: presets, inputs, drag/zoom, upload, `?shot=` scenes |
-| `app/fonts/` | Anton + Pacifico (SIL Open Font License, see `OFL.txt`) |
-| `app/samples/` | Six sample photos: two kit samples, four cast portraits |
-| `main.ts` | Hands the app in: copies `app/` + `screenshots/`, writes `dossier.json` |
-| `serve.ts` | Tiny static server for local tries (`:8080`) |
+## Fonts
 
-Everything is original work: no Rockstar Games logo, artwork or font is
-used anywhere. The two fonts are SIL OFL licensed and ship under `app/fonts/`.
+Anton and Pacifico are bundled under `app/fonts/` under the SIL Open Font
+License 1.1 (see `app/fonts/OFL.txt`). No Rockstar logos, artwork or
+typefaces are used anywhere in this project.
